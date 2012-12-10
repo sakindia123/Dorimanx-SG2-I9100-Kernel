@@ -369,7 +369,11 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -Werror-implicit-function-declaration \
 		   -Wno-format-security \
 		   -fno-delete-null-pointer-checks \
-		   -mtune=cortex-a9
+		   -marm -mtune=cortex-a9 -march=armv7-a \
+		   -fgraphite-identity -ftree-loop-distribution \
+		   -floop-interchange -floop-block -floop-strip-mine -ftree-loop-linear \
+		   -funswitch-loops -fpredictive-commoning -ffast-math -fgcse-after-reload \
+		   -fipa-cp-clone
 KBUILD_AFLAGS_KERNEL :=
 KBUILD_CFLAGS_KERNEL :=
 KBUILD_AFLAGS   := -D__ASSEMBLY__
@@ -564,15 +568,16 @@ KBUILD_CFLAGS	+= -Os
 else
 KBUILD_CFLAGS	+= -O2
 endif
-
 ifdef CONFIG_CC_CHECK_WARNING_STRICTLY
-KBUILD_CFLAGS	+= -fdiagnostics-show-option -Werror \
-		   -Wno-error=unused-function \
-		   -Wno-error=unused-variable \
-		   -Wno-error=unused-value \
-		   -Wno-error=unused-label
+KBUILD_CFLAGS += -fdiagnostics-show-option -Werror \
+		-Wno-error=unused-function \
+		-Wno-error=unused-variable \
+		-Wno-error=unused-value \
+		-Wno-error=unused-label \
+		-Wno-error=uninitialized \
+		-Wno-error=address \
+		-Wno-error=enum-compare
 endif
-
 include $(srctree)/arch/$(SRCARCH)/Makefile
 
 ifneq ($(CONFIG_FRAME_WARN),0)

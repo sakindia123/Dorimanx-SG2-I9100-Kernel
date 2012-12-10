@@ -133,7 +133,7 @@ rm -f $KERNELDIR/boot.img.pre
 cp $KERNELDIR/.config $KERNELDIR/arch/arm/configs/halaszk_defconfig
 cp $KERNELDIR/.config $KERNELDIR/READY/
 rm $KERNELDIR/READY/boot/zImage
-rm $KERNELDIR/READY/Kernel_halaszk-*
+rm $KERNELDIR/READY/Kernel-Siyah-halaszk-*
 stat $KERNELDIR/boot.img
 cp $KERNELDIR/boot.img /$KERNELDIR/READY/boot/
 cd $KERNELDIR/READY/
@@ -142,6 +142,6 @@ zip -r Kernel-$GETVER-`date +"-%H-%M--%d-%m-12-SGSIII-PWR-CORE"`.zip .
 rm $KERNELDIR/boot.img
 rm $KERNELDIR/READY/boot/boot.img
 rm $KERNELDIR/READY/.config
-mv $KERNELDIR/READY/Kernel_halaszk-* $KERNELDIR/SGSIII/
+mv $KERNELDIR/READY/Kernel-Siyah-halaszk-* $KERNELDIR/SGSIII/
 ncftpput -f /home/halaszk/login.cfg -V -R / $KERNELDIR/SGSIII/
-rm $KERNELDIR/SGSIII/Kernel_halaszk-*
+rm $KERNELDIR/SGSIII/Kernel_Siyah-halaszk-*
