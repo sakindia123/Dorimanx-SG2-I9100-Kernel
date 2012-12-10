@@ -530,7 +530,7 @@ static void set_dvfs_lock(struct mms_ts_info *info, uint32_t on)
 }
 
 			ret = exynos_cpufreq_lock(DVFS_LOCK_ID_TSP,
-							info->touch_boost_level);
+							touch_boost_level);
 			if (ret < 0)
 				pr_err("%s: cpu lock failed(%d)\n",\
 							__func__, __LINE__);
@@ -539,7 +539,7 @@ static void set_dvfs_lock(struct mms_ts_info *info, uint32_t on)
 				msecs_to_jiffies(TOUCH_BOOSTER_CHG_TIME));
 
 			info->dvfs_lock_status = true;
-			pr_debug("[TSP] DVFS On![%d]", info->touch_boost_level);
+			pr_debug("[TSP] DVFS On![%d]", touch_boost_level);
 		}
 	} else if (on == 2) {
 		cancel_delayed_work(&info->work_dvfs_off);
