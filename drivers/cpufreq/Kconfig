@@ -76,6 +76,31 @@ config CPU_FREQ_DEFAULT_GOV_USERSPACE
 	  program shall be able to set the CPU dynamically without having
 	  to enable the userspace governor manually.
 
+config CPU_FREQ_DEFAULT_GOV_ABYSSPLUG
+        bool "abyssplug"
+        select CPU_FREQ_GOV_ABYSSPLUG
+        select CPU_FREQ_GOV_PERFORMANCE
+        ---help---
+        Use the CPUFreq governor 'abyssplug' as default. This allows you
+        to get a full dynamic frequency capable system with CPU
+        hotplug support by simply loading your cpufreq low-level
+        hardware driver. Be aware that not all cpufreq drivers
+        support the hotplug governor. If unsure have a look at
+        the help section of the driver. Fallback governor will be the
+        performance governor.
+
+config CPU_FREQ_DEFAULT_GOV_ONDEMANDQ
+        bool "ondemandq"
+        select CPU_FREQ_GOV_ONDEMANDQ
+        select CPU_FREQ_GOV_PERFORMANCE
+        help
+          Use the CPUFreq governor 'ondemandq' as default. This allows
+          you to get a full dynamic frequency capable system by simply
+          loading your cpufreq low-level hardware driver.
+          Be aware that not all cpufreq drivers support the ondemandq
+          governor. If unsure have a look at the help section of the
+          driver. Fallback governor will be the performance governor.	  
+	  
 config CPU_FREQ_DEFAULT_GOV_ONDEMAND
 	bool "ondemand"
 	select CPU_FREQ_GOV_ONDEMAND
@@ -200,9 +225,45 @@ config CPU_FREQ_GOV_ONDEMAND
 
 	  If in doubt, say N.
 
+config CPU_FREQ_GOV_ABYSSPLUG
+        tristate "'abyssplug' cpufreq governor"
+        depends on CPU_FREQ && NO_HZ && HOTPLUG_CPU
+        ---help---
+        'abyssplug' - this driver mimics the frequency scaling behavior
+        in 'ondemand', but with several key differences. First is
+        that frequency transitions use the CPUFreq table directly,
+        instead of incrementing in a percentage of the maximum
+        available frequency. Second 'abyssplug' will offline auxillary
+        CPUs when the system is idle, and online those CPUs once the
+        system becomes busy again. This last feature is needed for
+        architectures which transition to low power states when only
+        the "master" CPU is online, or for thermally constrained
+        devices.
+
+        If you don't have one of these architectures or devices, use
+        'ondemand' instead.
+
+        If in doubt, say N.
+
+config CPU_FREQ_GOV_ONDEMANDQ
+        tristate "'ondemandq' cpufreq policy governor"
+        select CPU_FREQ_TABLE
+        help
+          'ondemandq' - This driver adds a dynamic cpufreq policy governor.
+          The governor does a periodic polling and
+          changes frequency based on the CPU utilization.
+          The support for this governor depends on CPU capability to
+          do fast frequency switching (i.e, very low latency frequency
+          transitions).
+          To compile this driver as a module, choose M here: the
+          module will be called cpufreq_ondemandq.
+          For details, take a look at linux/Documentation/cpu-freq.
+          If in doubt, say N.
+	  
+	  
 config CPU_FREQ_GOV_ONDEMAND_FLEXRATE
 	bool "flexrate interface for 'ondemand' cpufreq policy governor"
-	depends on CPU_FREQ_GOV_ONDEMAND
+	depends on CPU_FREQ_GOV_ONDEMAND || CPU_FREQ_GOV_PEGASUSQ
 	help
 	  Flexrate for 'ondemand' governor provides an interface to request
 	  faster polling temporarily. This is to let it react quickly to
