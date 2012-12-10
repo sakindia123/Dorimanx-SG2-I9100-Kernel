@@ -137,7 +137,7 @@ rm $KERNELDIR/READY/Kernel_halaszk-*
 stat $KERNELDIR/boot.img
 cp $KERNELDIR/boot.img /$KERNELDIR/READY/boot/
 cd $KERNELDIR/READY/
-GETVER=`grep 'halaszk-V' .config | cut -c 32-35`
+GETVER=`grep 'Siyah-halaszk' .config | cut -c 23-39`
 zip -r Kernel_halaszk-$GETVER-`date +"-%H-%M--%d-%m-12-SGSIII-PWR-CORE"`.zip .
 rm $KERNELDIR/boot.img
 rm $KERNELDIR/READY/boot/boot.img
