@@ -26,10 +26,6 @@
 #include <plat/regs-dsim.h>
 #include <mach/dsim.h>
 #include <mach/mipi_ddi.h>
-
-#include <linux/device.h> 
-#include <linux/miscdevice.h>
-
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 #endif
@@ -1595,20 +1591,6 @@ static struct mipi_lcd_driver s6e8ax0_mipi_driver = {
 
 static int s6e8ax0_init(void)
 {
-	int ret;
-	
-	ret = misc_register(&brightness_curve_device);
-	if (ret) {
-	   printk(KERN_ERR "failed at(%d)\n", __LINE__);
-	}
-
-	ret = sysfs_create_group(&brightness_curve_device.this_device->kobj, 
-			&brightness_curve_group);
-	if (ret)
-	{
-		printk(KERN_ERR "failed at(%d)\n", __LINE__);
-	}
-
 	return s5p_dsim_register_lcd_driver(&s6e8ax0_mipi_driver);
 }
 
