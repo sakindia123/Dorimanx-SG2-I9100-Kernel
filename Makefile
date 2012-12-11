@@ -364,16 +364,18 @@ LINUXINCLUDE    := -I$(srctree)/arch/$(hdr-arch)/include \
 
 KBUILD_CPPFLAGS := -D__KERNEL__
 
-KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
-		   -fno-strict-aliasing -fno-common \
-		   -Werror-implicit-function-declaration \
-		   -Wno-format-security \
-		   -fno-delete-null-pointer-checks \
-		   -marm -mtune=cortex-a9 -march=armv7-a \
-		   -fgraphite-identity -ftree-loop-distribution \
-		   -floop-interchange -floop-block -floop-strip-mine -ftree-loop-linear \
-		   -funswitch-loops -fpredictive-commoning -ffast-math -fgcse-after-reload \
-		   -fipa-cp-clone
+KBUILD_CFLAGS := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
+		-fno-strict-aliasing -fno-common \
+		-Werror-implicit-function-declaration \
+		-Wno-format-security \
+		-fno-delete-null-pointer-checks \
+		-pipe \
+		-ffast-math \
+		-mfpu=neon \
+		-mfloat-abi=softfp \
+		-march=armv7-a \
+		-mtune=cortex-a9 \
+		-mvectorize-with-neon-quad
 KBUILD_AFLAGS_KERNEL :=
 KBUILD_CFLAGS_KERNEL :=
 KBUILD_AFLAGS   := -D__ASSEMBLY__
@@ -569,14 +571,11 @@ else
 KBUILD_CFLAGS	+= -O2
 endif
 ifdef CONFIG_CC_CHECK_WARNING_STRICTLY
-KBUILD_CFLAGS += -fdiagnostics-show-option -Werror \
+KBUILD_CFLAGS	+= -fdiagnostics-show-option -Werror \
 		-Wno-error=unused-function \
 		-Wno-error=unused-variable \
 		-Wno-error=unused-value \
-		-Wno-error=unused-label \
-		-Wno-error=uninitialized \
-		-Wno-error=address \
-		-Wno-error=enum-compare
+		-Wno-error=unused-label
 endif
 include $(srctree)/arch/$(SRCARCH)/Makefile
 

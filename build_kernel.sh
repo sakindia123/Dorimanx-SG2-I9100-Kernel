@@ -144,4 +144,4 @@ rm $KERNELDIR/READY/boot/boot.img
 rm $KERNELDIR/READY/.config
 mv $KERNELDIR/READY/Kernel-Siyah-halaszk-* $KERNELDIR/SGSIII/
 ncftpput -f /home/halaszk/login.cfg -V -R / $KERNELDIR/SGSIII/
-rm $KERNELDIR/SGSIII/Kernel_Siyah-halaszk-*
+rm $KERNELDIR/SGSIII/Kernel-Siyah-halaszk-*
