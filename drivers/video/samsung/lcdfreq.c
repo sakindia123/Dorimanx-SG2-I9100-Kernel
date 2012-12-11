@@ -61,7 +61,7 @@ struct lcdfreq_info {
 u64		time_in_state[LCDFREQ_LEVEL_END];
 struct timeval	last_switch;
 
-static void init_accounting()
+static void init_accounting(void)
 {
 	int i;
 
@@ -72,7 +72,7 @@ static void init_accounting()
 	do_gettimeofday(&last_switch);
 }
 
-static void refresh_last_switch()
+static void refresh_last_switch(void)
 {
 	do_gettimeofday(&last_switch);
 }
