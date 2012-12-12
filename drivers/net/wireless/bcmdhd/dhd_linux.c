@@ -639,7 +639,6 @@ void dhd_enable_packet_filter(int value, dhd_pub_t *dhd)
 	}
 }
 #endif /* PKT_FILTER_SUPPORT */
-
 #ifdef CONFIG_BCMDHD_WIFI_PM
 static int wifi_pm = 0;
 /* /sys/module/dhd/parameters/wifi_pm */
@@ -669,9 +668,8 @@ int power_mode;
 
 	DHD_TRACE(("%s: enter, value = %d in_suspend=%d\n",
 		__FUNCTION__, value, dhd->in_suspend));
-
 #ifdef CONFIG_BCMDHD_WIFI_PM
-if (wifi_pm == 1) {
+	if (wifi_pm == 1) {
 power_mode = PM_FAST;
 pr_info("[halaszk] %p Wi-Fi Power Management policy changed to PM_FAST.", __func__);
 } else {
@@ -682,8 +680,8 @@ pr_info("[halaszk] %p Wi-Fi Power Management policy changed to PM_MAX.", __func_
 #ifndef SUPPORT_PM2_ONLY
 int power_mode = PM_MAX;
 #endif
-#endif		
-		
+#endif
+
 	dhd_suspend_lock(dhd);
 	if (dhd && dhd->up) {
 		if (value && dhd->in_suspend) {
@@ -3565,13 +3563,14 @@ int
 dhd_preinit_ioctls(dhd_pub_t *dhd)
 {
 	int ret = 0;
+	uint power_mode;
 	char eventmask[WL_EVENTING_MASK_LEN];
 	char iovbuf[WL_EVENTING_MASK_LEN + 12];	/*  Room for "event_msgs" + '\0' + bitvec  */
 
 #if !defined(WL_CFG80211)
 	uint up = 0;
 #endif /* !defined(WL_CFG80211) */
-	uint power_mode = PM_FAST;
+	//uint power_mode = PM_FAST;
 	uint32 dongle_align = DHD_SDALIGN;
 	uint32 glom = CUSTOM_GLOM_SETTING;
 #if defined(VSDB) || defined(ROAM_ENABLE)
@@ -5196,7 +5195,7 @@ int net_os_set_dtim_skip(struct net_device *dev, int val)
 #ifdef PKT_FILTER_SUPPORT
 int net_os_rxfilter_add_remove(struct net_device *dev, int add_remove, int num)
 {
-#ifndef GAN_LITE_NAT_KEEPALIVE_FILTER
+#if !defined(GAN_LITE_NAT_KEEPALIVE_FILTER) && 0
 	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
 	char *filterp = NULL;
 	int ret = 0;
