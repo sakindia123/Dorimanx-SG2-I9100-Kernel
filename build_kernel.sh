@@ -74,16 +74,6 @@ OLDMODULES=`find -name *.ko`
 for i in $OLDMODULES; do
 rm -f $i
 done;
-# remove previous initramfs files
-if [ -d $INITRAMFS_TMP ]; then
-echo "removing old temp iniramfs"
-rm -rf $INITRAMFS_TMP
-fi;
-
-if [ -f "/tmp/cpio*" ]; then
-echo "removing old temp iniramfs_tmp.cpio"
-rm -rf /tmp/cpio*
-fi;
 
 # clean initramfs old compile data
 rm -f usr/initramfs_data.cpio
@@ -93,7 +83,10 @@ make -j$NAMBEROFCPUS modules || exit 1
 else
 nice -n 10 make -j$NAMBEROFCPUS modules || exit 1
 fi;
-
+#remove previous ramfs files
+rm -rf $INITRAMFS_TMP
+rm -rf $INITRAMFS_TMP.cpio
+rm -rf $INITRAMFS_TMP.cpio.gz
 # copy initramfs files to tmp directory
 cp -ax $INITRAMFS_SOURCE $INITRAMFS_TMP
 # clear git repositories in initramfs
@@ -110,12 +103,11 @@ fi;
 # copy modules into initramfs
 mkdir -p $INITRAMFS/lib/modules
 mkdir -p $INITRAMFS_TMP/lib/modules
+#mv -f drivers/media/video/samsung/mali_r3p0_lsi/mali.ko drivers/media/video/samsung/mali_r3p0_lsi/mali_r3p0_lsi.ko
+#mv -f drivers/net/wireless/bcmdhd.cm/dhd.ko drivers/net/wireless/bcmdhd.cm/dhd_cm.ko
 find -name '*.ko' -exec cp -av {} $INITRAMFS_TMP/lib/modules/ \;
 ${CROSS_COMPILE}strip --strip-debug $INITRAMFS_TMP/lib/modules/*.ko
 chmod 755 $INITRAMFS_TMP/lib/modules/*
-mv -f drivers/media/video/samsung/mali_r3p0_lsi/mali.ko drivers/media/video/samsung/mali_r3p0_lsi/mali_r3p0_lsi.ko
-mv -f drivers/net/wireless/bcmdhd.cm/dhd.ko drivers/net/wireless/bcmdhd.cm/dhd_cm.ko
-find -name '*.ko' -exec cp -av {} $INITRAMFS_TMP/lib/modules/ \;
 ${CROSS_COMPILE}strip --strip-unneeded $INITRAMFS_TMP/lib/modules/*
 cd $INITRAMFS_TMP
 find | fakeroot cpio -H newc -o > $INITRAMFS_TMP.cpio 2>/dev/null
