@@ -72,6 +72,7 @@ static void pmu_irq_ack(struct irq_data *d)
 	 * So, let's structure the code so that the window is as small as
 	 * possible.
 	 */
+
 	u = ~(1 << (pin & 31));
 	u &= readl_relaxed(PMU_INTERRUPT_CAUSE);
 	writel_relaxed(u, PMU_INTERRUPT_CAUSE);
