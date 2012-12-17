@@ -12,7 +12,7 @@
 #include <linux/miscdevice.h>
 #include <linux/kallsyms.h>
 
-#define GPU_MAX_CLOCK 800
+#define GPU_MAX_CLOCK 900
 #define GPU_MIN_CLOCK 10
 
 #define MIN_VOLTAGE_GPU  600000
