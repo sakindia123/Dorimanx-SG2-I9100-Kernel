@@ -138,8 +138,12 @@ static struct dbs_tuners {
 #define MN_UP 1
 #define MN_DOWN 2
 
-/* Table modified for use with Samsung I9300 by ZaneZam November 2012 */
-static int mn_freqs[14][3]={
+/* Table modified for use with Samsung I9300 by ZaneZam November 2012 and halaszk 2012 December */
+static int mn_freqs[18][3]={
+    {1800000,1800000,1700000},
+    {1700000,1700000,1600000},
+    {1600000,1600000,1500000},
+    {1500000,1500000,1400000},
     {1400000,1400000,1300000},
     {1300000,1400000,1200000},
     {1200000,1300000,1100000},
@@ -153,11 +157,15 @@ static int mn_freqs[14][3]={
     { 400000, 500000, 200000},
     { 300000, 400000, 200000},
     { 200000, 300000, 200000},
-	{ 100000, 200000, 100000}
+    { 100000, 200000, 100000}
 };
 
 /* Table modified for use with Samsung I9300 by ZaneZam November 2012 */
-static int mn_freqs_power[14][3]={
+static int mn_freqs_power[18][3]={
+    {1800000,1800000,1700000},
+    {1700000,1700000,1600000},
+    {1600000,1600000,1500000},
+    {1500000,1500000,1400000},
     {1400000,1400000,1300000},
     {1300000,1400000,1200000},
     {1200000,1400000,1100000},
@@ -171,14 +179,14 @@ static int mn_freqs_power[14][3]={
     { 400000, 600000, 300000},
     { 300000, 500000, 200000},
     { 200000, 400000, 200000},
-	{ 100000, 200000, 100000}
+    { 100000, 200000, 100000}
 };
 
 static int mn_get_next_freq(unsigned int curfreq, unsigned int updown, unsigned int load) {
     int i=0;
     if (load < dbs_tuners_ins.smooth_up)
     {
-        for(i = 0; i < 13; i++)
+        for(i = 0; i < 18; i++)
         {
             if(curfreq == mn_freqs[i][MN_FREQ])
                 return mn_freqs[i][updown]; // updown 1|2
@@ -186,7 +194,7 @@ static int mn_get_next_freq(unsigned int curfreq, unsigned int updown, unsigned 
     }
     else
     {
-        for(i = 0; i < 13; i++)
+        for(i = 0; i < 18; i++)
         {
             if(curfreq == mn_freqs_power[i][MN_FREQ])
                 return mn_freqs_power[i][updown]; // updown 1|2
