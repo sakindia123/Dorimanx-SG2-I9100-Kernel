@@ -23,8 +23,9 @@
 #include <linux/tick.h>
 #include <linux/ktime.h>
 #include <linux/sched.h>
+#ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
-
+#endif
 // smooth up/downscaling via lookup tables
 #define MN_SMOOTH 1
 
@@ -52,6 +53,13 @@
  * All times here are in uS.
  */
 #define MIN_SAMPLING_RATE_RATIO			(2)
+
+#ifdef CONFIG_CPU_FREQ_LCD_FREQ_DFS
+#define LCD_FREQ_KICK_IN_DOWN_DELAY		(20)
+#define LCD_FREQ_KICK_IN_FREQ			(500000)
+
+extern int _lcdfreq_lock(int lock);
+#endif
 
 static unsigned int min_sampling_rate;
 
@@ -107,6 +115,12 @@ static struct dbs_tuners {
 	unsigned int ignore_nice;
 	unsigned int freq_step;
 	unsigned int smooth_up;
+	#ifdef CONFIG_CPU_FREQ_LCD_FREQ_DFS
+	int lcdfreq_enable;
+	unsigned int lcdfreq_kick_in_down_delay;
+	unsigned int lcdfreq_kick_in_down_left;
+	unsigned int lcdfreq_kick_in_freq;
+	#endif
 
 } dbs_tuners_ins = {
 	.up_threshold = DEF_FREQUENCY_UP_THRESHOLD,
@@ -117,6 +131,12 @@ static struct dbs_tuners {
 	.ignore_nice = 0,
 	.freq_step = 5,
 	.smooth_up = DEF_SMOOTH_UP,
+	#ifdef CONFIG_CPU_FREQ_LCD_FREQ_DFS
+	.lcdfreq_enable = false,
+	.lcdfreq_kick_in_down_delay = LCD_FREQ_KICK_IN_DOWN_DELAY,
+	.lcdfreq_kick_in_down_left = LCD_FREQ_KICK_IN_DOWN_DELAY,
+	.lcdfreq_kick_in_freq = LCD_FREQ_KICK_IN_FREQ,
+	#endif
 };
 
 /**
@@ -293,6 +313,11 @@ show_one(down_threshold_hotplug, down_threshold_hotplug);
 show_one(ignore_nice_load, ignore_nice);
 show_one(freq_step, freq_step);
 show_one(smooth_up, smooth_up);
+#ifdef CONFIG_CPU_FREQ_LCD_FREQ_DFS
+show_one(lcdfreq_enable, lcdfreq_enable);
+show_one(lcdfreq_kick_in_down_delay, lcdfreq_kick_in_down_delay);
+show_one(lcdfreq_kick_in_freq, lcdfreq_kick_in_freq);
+#endif
 
 static ssize_t store_sampling_down_factor(struct kobject *a,
 					  struct attribute *b,
@@ -451,6 +476,56 @@ static ssize_t store_smooth_up(struct kobject *a,
 	return count;
 }
 
+#ifdef CONFIG_CPU_FREQ_LCD_FREQ_DFS
+static ssize_t store_lcdfreq_enable(struct kobject *a, struct attribute *b,
+				     const char *buf, size_t count)
+{
+	unsigned int input;
+	int ret;
+
+	ret = sscanf(buf, "%u", &input);
+	if (ret != 1)
+		return -EINVAL;
+
+	if (input > 0)
+		dbs_tuners_ins.lcdfreq_enable = true;
+	else
+		dbs_tuners_ins.lcdfreq_enable = false;
+
+	return count;
+}
+
+static ssize_t store_lcdfreq_kick_in_down_delay(struct kobject *a, struct attribute *b,
+				   const char *buf, size_t count)
+{
+	unsigned int input;
+	int ret;
+
+	ret = sscanf(buf, "%u", &input);
+	if (ret != 1 && input < 0)
+		return -EINVAL;
+
+	dbs_tuners_ins.lcdfreq_kick_in_down_delay = input;
+	dbs_tuners_ins.lcdfreq_kick_in_down_left =
+				  dbs_tuners_ins.lcdfreq_kick_in_down_delay;
+	return count;
+}
+
+static ssize_t store_lcdfreq_kick_in_freq(struct kobject *a, struct attribute *b,
+				   const char *buf, size_t count)
+{
+	unsigned int input;
+	int ret;
+
+	ret = sscanf(buf, "%u", &input);
+	if (ret != 1)
+		return -EINVAL;
+
+	dbs_tuners_ins.lcdfreq_kick_in_freq = input;
+	return count;
+}
+#endif
+
 define_one_global_rw(sampling_rate);
 define_one_global_rw(sampling_down_factor);
 define_one_global_rw(up_threshold);
@@ -460,6 +535,11 @@ define_one_global_rw(down_threshold_hotplug);
 define_one_global_rw(ignore_nice_load);
 define_one_global_rw(freq_step);
 define_one_global_rw(smooth_up);
+#ifdef CONFIG_CPU_FREQ_LCD_FREQ_DFS
+define_one_global_rw(lcdfreq_enable);
+define_one_global_rw(lcdfreq_kick_in_down_delay);
+define_one_global_rw(lcdfreq_kick_in_freq);
+#endif
 
 static struct attribute *dbs_attributes[] = {
 	&sampling_rate_min.attr,
@@ -472,6 +552,11 @@ static struct attribute *dbs_attributes[] = {
 	&freq_step.attr,
 	&smooth_up.attr,
 	&up_threshold.attr,
+#ifdef CONFIG_CPU_FREQ_LCD_FREQ_DFS
+	&lcdfreq_enable.attr,
+	&lcdfreq_kick_in_down_delay.attr,
+	&lcdfreq_kick_in_freq.attr,
+#endif
 	NULL
 };
 
@@ -589,6 +674,16 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 
 		__cpufreq_driver_target(policy, this_dbs_info->requested_freq,
 			CPUFREQ_RELATION_H);
+#ifdef CONFIG_CPU_FREQ_LCD_FREQ_DFS
+		if(dbs_tuners_ins.lcdfreq_enable) {
+			if(target > dbs_tuners_ins.lcdfreq_kick_in_freq) {
+				dbs_tuners_ins.lcdfreq_kick_in_down_left =
+				  dbs_tuners_ins.lcdfreq_kick_in_down_delay;
+				_lcdfreq_lock(0);
+			} else 
+				dbs_tuners_ins.lcdfreq_kick_in_down_left--;
+		}
+#endif
 		return;
 	}
 
@@ -625,6 +720,18 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 		/*
 		 * if we cannot reduce the frequency anymore, break out early
 		 */
+#ifdef CONFIG_CPU_FREQ_LCD_FREQ_DFS
+		if(dbs_tuners_ins.lcdfreq_enable) {
+			if(dbs_tuners_ins.lcdfreq_kick_in_freq < freq_next) {
+				dbs_tuners_ins.lcdfreq_kick_in_down_left =
+				  dbs_tuners_ins.lcdfreq_kick_in_down_delay;
+			} else if(dbs_tuners_ins.lcdfreq_kick_in_down_left <= 0) {
+				_lcdfreq_lock(1);
+			} else {
+				dbs_tuners_ins.lcdfreq_kick_in_down_left--;
+			}
+		}
+#endif
 		if (policy->cur == policy->min)
 			return;
 
@@ -672,6 +779,9 @@ static inline void dbs_timer_exit(struct cpu_dbs_info_s *dbs_info)
 	cancel_delayed_work_sync(&dbs_info->work);
 }
 
+#ifdef CONFIG_CPU_FREQ_LCD_FREQ_DFS
+int prev_lcdfreq_enable;
+#endif
 static void powersave_early_suspend(struct early_suspend *handler)
 {
   mutex_lock(&dbs_mutex);
@@ -683,6 +793,10 @@ static void powersave_early_suspend(struct early_suspend *handler)
   dbs_tuners_ins.up_threshold = 90;
   dbs_tuners_ins.down_threshold = 44;
   dbs_tuners_ins.smooth_up = 100;
+#ifdef CONFIG_CPU_FREQ_LCD_FREQ_DFS
+  prev_lcdfreq_enable = dbs_tuners_ins.lcdfreq_enable;
+  dbs_tuners_ins.lcdfreq_enable = false;
+#endif
   mutex_unlock(&dbs_mutex);
 }
 
@@ -693,6 +807,9 @@ static void powersave_late_resume(struct early_suspend *handler)
   dbs_tuners_ins.up_threshold = up_threshold_awake;
   dbs_tuners_ins.down_threshold = down_threshold_awake;
   dbs_tuners_ins.smooth_up = smooth_up_awake;
+#ifdef CONFIG_CPU_FREQ_LCD_FREQ_DFS
+	dbs_tuners_ins.lcdfreq_enable = prev_lcdfreq_enable;
+#endif
   mutex_unlock(&dbs_mutex);
 }
 
@@ -782,6 +899,9 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 
 	case CPUFREQ_GOV_STOP:
 		dbs_timer_exit(this_dbs_info);
+#ifdef CONFIG_CPU_FREQ_LCD_FREQ_DFS
+		_lcdfreq_lock(0);
+#endif
 
 		mutex_lock(&dbs_mutex);
 		dbs_enable--;
