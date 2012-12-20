@@ -552,7 +552,7 @@ static ssize_t show_scaling_setspeed(struct cpufreq_policy *policy, char *buf)
 
 	return policy->governor->show_setspeed(policy, buf);
 }
-
+#if defined CONFIG_BUSFREQ_OPP
 extern ssize_t store_UV_mV_table(struct cpufreq_policy *policy,
 const char *buf, size_t count);
 
@@ -567,9 +567,7 @@ extern ssize_t show_UV_uV_table(struct cpufreq_policy *policy, char *buf);
 extern ssize_t show_int_mV_table(struct cpufreq_policy *policy, char *buf);
 extern ssize_t store_int_mV_table(struct cpufreq_policy *policy,
                                       const char *buf, size_t count);
-
-
-
+#endif
 /**
  * show_scaling_driver - show the current cpufreq HW/BIOS limitation
  */
@@ -599,8 +597,9 @@ cpufreq_freq_attr_rw(scaling_min_freq);
 cpufreq_freq_attr_rw(scaling_max_freq);
 cpufreq_freq_attr_rw(scaling_governor);
 cpufreq_freq_attr_rw(scaling_setspeed);
+#if defined CONFIG_BUSFREQ_OPP
 cpufreq_freq_attr_rw(int_mV_table);
-
+#endif
 static struct attribute *default_attrs[] = {
 	&cpuinfo_min_freq.attr,
 	&cpuinfo_max_freq.attr,
@@ -613,7 +612,9 @@ static struct attribute *default_attrs[] = {
 	&scaling_driver.attr,
 	&scaling_available_governors.attr,
 	&scaling_setspeed.attr,
+	#if defined CONFIG_BUSFREQ_OPP
 	&int_mV_table.attr,
+	#endif
 	NULL
 };
 
