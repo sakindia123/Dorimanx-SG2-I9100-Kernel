@@ -25,8 +25,9 @@
 #include <plat/gpio-cfg.h>
 #include <linux/gpio.h>
 
-//#define S5C73M3_BUSFREQ_OPP
-
+#ifdef CONFIG_BUSFREQ_OPP
+#define S5C73M3_BUSFREQ_OPP
+#endif
 #ifdef S5C73M3_BUSFREQ_OPP
 #include <mach/dev.h>
 #include <plat/cpu.h>
