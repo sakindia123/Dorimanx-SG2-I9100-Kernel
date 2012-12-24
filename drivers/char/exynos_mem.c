@@ -241,29 +241,6 @@ static struct vm_operations_struct exynos_mem_ops = {
 	.close	= exynos_mem_mmap_close,
 };
 
-static struct simple_cma_descriptor cmad_container[CMA_REGION_COUNT];
-static int cmad_container_stored = 0;
-
-void cma_region_descriptor_add(const char *name, int start, int size)
-{
-	int i;
-
-	pr_info("[%s] adding [%s] (0x%08x)-(0x%08x)\n", 
-		__func__, name, start, size);
-
-	if(cmad_container_stored == CMA_REGION_COUNT - 1)
-		return;
-
-	i = cmad_container_stored;
-
-	cmad_container[i].name = name;
-	cmad_container[i].start = start;
-	cmad_container[i].size = size;
-
-	cmad_container_stored++;
-
-}
-
 int exynos_mem_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	struct exynos_mem *mem = (struct exynos_mem *)filp->private_data;
@@ -271,10 +248,6 @@ int exynos_mem_mmap(struct file *filp, struct vm_area_struct *vma)
 	dma_addr_t start = 0;
 	u32 pfn = 0;
 	u32 size = vma->vm_end - vma->vm_start;
-
-	int i, allowed;
-	struct simple_cma_descriptor *b;
-	allowed = false;
 
 	if (vma->vm_pgoff) {
 		start = vma->vm_pgoff << PAGE_SHIFT;
@@ -284,6 +257,7 @@ int exynos_mem_mmap(struct file *filp, struct vm_area_struct *vma)
 		pfn = mem->phybase;
 	}
 
+<<<<<<< HEAD
 	pr_info("[%s] requesting access to (0x%08x)-(0x%08x)\n", 
 		__func__, start, (start + size));
 
@@ -325,6 +299,8 @@ int exynos_mem_mmap(struct file *filp, struct vm_area_struct *vma)
 	
 	/* The check below doesn't matter anymore */
 
+=======
+>>>>>>> parent of bc1f4e5... exynos-mem: Fix major security hole
 	/* TODO: currently lowmem is only avaiable */
 	if ((phys_to_virt(start) < (void *)PAGE_OFFSET) ||
 	    (phys_to_virt(start) >= high_memory)) {
