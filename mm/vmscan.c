@@ -1270,6 +1270,40 @@ int isolate_lru_page(struct page *page)
 	return ret;
 }
 
+#ifdef CONFIG_ZRAM_FOR_ANDROID
+/**
+* isolate_lru_page_compcache - tries to isolate a page for compcache
+* @page: page to isolate from its LRU list
+*
+* Isolates a @page from an LRU list, clears PageLRU,but
+* does not adjusts the vmstat statistic
+* Returns 0 if the page was removed from an LRU list.
+* Returns -EBUSY if the page was not on an LRU list.
+*/
+int isolate_lru_page_compcache(struct page *page)
+{
+int ret = -EBUSY;
+
+VM_BUG_ON(!page_count(page));
+
+if (PageLRU(page)) {
+struct zone *zone = page_zone(page);
+
+spin_lock_irq(&zone->lru_lock);
+if (PageLRU(page)) {
+int lru = page_lru(page);
+ret = 0;
+get_page(page);
+ClearPageLRU(page);
+list_del(&page->lru);
+mem_cgroup_del_lru_list(page, lru);
+}
+spin_unlock_irq(&zone->lru_lock);
+}
+return ret;
+}
+#endif
+
 /*
  * Are there way too many processes in the direct reclaim path already?
  */
@@ -1442,11 +1476,11 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
 			return SWAP_CLUSTER_MAX;
 	}
 
-#ifdef CONFIG_ZRAM_FOR_ANDROID
+/*#ifdef CONFIG_ZRAM_FOR_ANDROID*/
 	/*
 	  use optimized compcache to swap pages firstly
 	*/
-	if (timer_counter == 0) {
+/*	if (timer_counter == 0) {
 		long long  swap_time = 0;
 		do_gettimeofday(&start);
 		nr_reclaimed = swap_inactive_pagelist(SWAP_CLUSTER_MAX);
@@ -1454,21 +1488,15 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
 		swap_time = (long long)
 				((end.tv_sec - start.tv_sec) * USEC_PER_SEC +
 				 (end.tv_usec - start.tv_usec));
-		/*
-		  if the used time of optimized compcache is too long,
-		  delay to use optimzed, use original one for sometime
-		*/
 		if (swap_time > COMPCACHE_GOOD_TIME)
 			timer_counter = COMPCACHE_DELAY_COUNTER;
 		if (nr_reclaimed >= SWAP_CLUSTER_MAX)
 			return nr_reclaimed;
-		/* if there is no background application can be swapped,
-		   use original one for sometime */
 		else
 			timer_counter = COMPCACHE_DELAY_COUNTER;
 	} else
 		timer_counter--;
-#endif /* CONFIG_ZRAM_FOR_ANDROID */
+#endif  CONFIG_ZRAM_FOR_ANDROID */
 
 	set_reclaim_mode(priority, sc, false);
 	lru_add_drain();
