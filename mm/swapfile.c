@@ -1023,7 +1023,8 @@ static int unuse_mm(struct mm_struct *mm,
 }
 
 /*
- * Scan swap_map from current position to next entry still in use.
+ * Scan swap_map (or frontswap_map if frontswap parameter is true)
+ * from current position to next entry still in use.
  * Recycle to start on reaching the end, returning 0 when empty.
  */
 static unsigned int find_next_to_unuse(struct swap_info_struct *si,
@@ -1070,9 +1071,12 @@ static unsigned int find_next_to_unuse(struct swap_info_struct *si,
  * We completely avoid races by reading each swap page in advance,
  * and then search for the process using it.  All the necessary
  * page table adjustments can then be made atomically.
+ *
+ * if the boolean frontswap is true, only unuse pages_to_unuse pages;
+ * pages_to_unuse==0 means all pages; ignored if frontswap is false
  */
 int try_to_unuse(unsigned int type, bool frontswap,
-	unsigned long pages_to_unuse)
+		 unsigned long pages_to_unuse)
 {
 	struct swap_info_struct *si = swap_info[type];
 	struct mm_struct *start_mm;
@@ -1105,7 +1109,7 @@ int try_to_unuse(unsigned int type, bool frontswap,
 	 * one pass through swap_map is enough, but not necessarily:
 	 * there are races when an instance of an entry might be missed.
 	 */
-		while ((i = find_next_to_unuse(si, i, frontswap)) != 0) {
+	while ((i = find_next_to_unuse(si, i, frontswap)) != 0) {
 		if (signal_pending(current)) {
 			retval = -EINTR;
 			break;
@@ -1272,9 +1276,9 @@ int try_to_unuse(unsigned int type, bool frontswap,
 		 * interactive performance.
 		 */
 		cond_resched();
-	if (frontswap && pages_to_unuse > 0) {
-		if (!--pages_to_unuse)
-			break;
+		if (frontswap && pages_to_unuse > 0) {
+			if (!--pages_to_unuse)
+				break;
 		}
 	}
 
@@ -1535,8 +1539,8 @@ bad_bmap:
 }
 
 static void enable_swap_info(struct swap_info_struct *p, int prio,
-					unsigned char *swap_map,
-					unsigned long *frontswap_map)
+				unsigned char *swap_map,
+				unsigned long *frontswap_map)
 {
 	int i, prev;
 
@@ -1646,7 +1650,7 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
 		 * sys_swapoff for this swap_info_struct at this point.
 		 */
 		/* re-insert swap space back into swap_list */
-		 enable_swap_info(p, p->prio, p->swap_map, frontswap_map_get(p));
+		enable_swap_info(p, p->prio, p->swap_map, frontswap_map_get(p));
 		goto out_dput;
 	}
 
@@ -2124,10 +2128,9 @@ int swapon(char *name, int swap_flags)
 		error = nr_extents;
 		goto bad_swap;
 	}
-
 	/* frontswap enabled? set up bit-per-page map for frontswap */
 	if (frontswap_enabled)
-	frontswap_map = vzalloc(maxpages / sizeof(long));
+		frontswap_map = vzalloc(maxpages / sizeof(long));
 
 	if (p->bdev) {
 		if (blk_queue_nonrot(bdev_get_queue(p->bdev))) {
@@ -2143,15 +2146,15 @@ int swapon(char *name, int swap_flags)
 	if (swap_flags & SWAP_FLAG_PREFER)
 		prio =
 		    (swap_flags & SWAP_FLAG_PRIO_MASK) >> SWAP_FLAG_PRIO_SHIFT;
-
 	enable_swap_info(p, prio, swap_map, frontswap_map);
+
 	printk(KERN_INFO "Adding %uk swap on %s.  "
-		"Priority:%d extents:%d across:%lluk %s%s%s\n",
+	       "Priority:%d extents:%d across:%lluk %s%s\n",
 	       p->pages << (PAGE_SHIFT - 10), name, p->prio,
 	       nr_extents, (unsigned long long)span << (PAGE_SHIFT - 10),
 	       (p->flags & SWP_SOLIDSTATE) ? "SS" : "",
-		(p->flags & SWP_DISCARDABLE) ? "D" : "",
-		(frontswap_map) ? "FS" : "");
+	       (p->flags & SWP_DISCARDABLE) ? "D" : "");
+
 	mutex_unlock(&swapon_mutex);
 	atomic_inc(&proc_poll_event);
 	wake_up_interruptible(&proc_poll_wait);
@@ -2206,6 +2209,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 	int nr_extents;
 	sector_t span;
 	unsigned long maxpages;
+	unsigned long *frontswap_map = NULL;
 	unsigned char *swap_map = NULL;
 	struct page *page = NULL;
 	struct inode *inode = NULL;
@@ -2302,14 +2306,15 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 	if (swap_flags & SWAP_FLAG_PREFER)
 		prio =
 		  (swap_flags & SWAP_FLAG_PRIO_MASK) >> SWAP_FLAG_PRIO_SHIFT;
-	enable_swap_info(p, prio, swap_map);
+	enable_swap_info(p, prio, swap_map, frontswap_map);
 
 	printk(KERN_INFO "Adding %uk swap on %s.  "
-			"Priority:%d extents:%d across:%lluk %s%s\n",
+			"Priority:%d extents:%d across:%lluk %s%s%s\n",
 		p->pages<<(PAGE_SHIFT-10), name, p->prio,
 		nr_extents, (unsigned long long)span<<(PAGE_SHIFT-10),
 		(p->flags & SWP_SOLIDSTATE) ? "SS" : "",
-		(p->flags & SWP_DISCARDABLE) ? "D" : "");
+		(p->flags & SWP_DISCARDABLE) ? "D" : "",
+		(frontswap_map) ? "FS" : "");
 
 	mutex_unlock(&swapon_mutex);
 	atomic_inc(&proc_poll_event);
