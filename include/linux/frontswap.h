@@ -14,8 +14,8 @@ struct frontswap_ops {
 	 * invalidate_page and invalidate_area in a later commit in which
 	 * all dependencies (i.e. Xen, zcache) will be renamed simultaneously
 	 */
-	void (*flush_page)(unsigned, pgoff_t);
-	void (*flush_area)(unsigned);
+	void (*invalidate_page)(unsigned, pgoff_t);
+	void (*invalidate_area)(unsigned);
 };
 
 extern int frontswap_enabled;
