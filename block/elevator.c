@@ -62,6 +62,7 @@ static int elv_iosched_allow_merge(struct request *rq, struct bio *bio)
 	struct request_queue *q = rq->q;
 	struct elevator_queue *e = q->elevator;
 
+
 	if (e->ops->elevator_allow_merge_fn)
 		return e->ops->elevator_allow_merge_fn(q, rq, bio);
 
@@ -844,6 +845,12 @@ EXPORT_SYMBOL(elv_abort_queue);
 void elv_completed_request(struct request_queue *q, struct request *rq)
 {
 	struct elevator_queue *e = q->elevator;
+	
+if (test_bit(REQ_ATOM_URGENT, &rq->atomic_flags)) {
+q->notified_urgent = false;
+q->dispatched_urgent = false;
+blk_clear_rq_urgent(rq);
+}
 
 	/*
 	 * request is released from the driver, io must be done
