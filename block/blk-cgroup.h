@@ -19,16 +19,18 @@
 enum blkio_policy_id {
 	BLKIO_POLICY_PROP = 0,		/* Proportional Bandwidth division */
 	BLKIO_POLICY_THROTL,		/* Throttling */
-
-	BLKIO_NR_POLICIES,
 };
 
 /* Max limits for throttle policy */
 #define THROTL_IOPS_MAX		UINT_MAX
 
-#ifdef CONFIG_BLK_CGROUP
+#if defined(CONFIG_BLK_CGROUP) || defined(CONFIG_BLK_CGROUP_MODULE)
 
-extern struct percpu_mempool *blkg_stats_cpu_pool;
+#ifndef CONFIG_BLK_CGROUP
+/* When blk-cgroup is a module, its subsys_id isn't a compile-time constant */
+extern struct cgroup_subsys blkio_subsys;
+#define blkio_subsys_id blkio_subsys.subsys_id
+#endif
 
 enum stat_type {
 	/* Total time spent (in ns) between request dispatch to the driver and
@@ -186,7 +188,7 @@ struct blkio_policy_node {
 	union {
 		unsigned int weight;
 		/*
-		 * Rate read/write in terms of bytes per second
+		 * Rate read/write in terms of byptes per second
 		 * Whether this rate represents read or write is determined
 		 * by file type "fileid".
 		 */
@@ -301,7 +303,7 @@ static inline void blkiocg_update_idle_time_stats(struct blkio_group *blkg) {}
 static inline void blkiocg_set_start_empty_time(struct blkio_group *blkg) {}
 #endif
 
-#ifdef CONFIG_BLK_CGROUP
+#if defined(CONFIG_BLK_CGROUP) || defined(CONFIG_BLK_CGROUP_MODULE)
 extern struct blkio_cgroup blkio_root_cgroup;
 extern struct blkio_cgroup *cgroup_to_blkio_cgroup(struct cgroup *cgroup);
 extern struct blkio_cgroup *task_blkio_cgroup(struct task_struct *tsk);

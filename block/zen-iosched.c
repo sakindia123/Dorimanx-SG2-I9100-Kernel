@@ -16,8 +16,8 @@
 
 enum zen_data_dir { ASYNC, SYNC };
 
-static const int sync_expire  = HZ;    /* max time before a sync is submitted. */
-static const int async_expire = 6 * HZ;    /* ditto for async, these limits are SOFT! */
+static const int sync_expire  = HZ / 4;    /* max time before a sync is submitted. */
+static const int async_expire = 4 * HZ;    /* ditto for async, these limits are SOFT! */
 static const int fifo_batch = 1;
 
 struct zen_data {
@@ -25,7 +25,7 @@ struct zen_data {
 	/* Requests are only present on fifo_list */
 	struct list_head fifo_list[2];
 
-	unsigned int batching;          /* number of sequential requests made */
+        unsigned int batching;          /* number of sequential requests made */
 
 	/* tunables */
 	int fifo_expire[2];
@@ -61,11 +61,11 @@ zen_merged_requests(struct request_queue *q, struct request *req,
 static void zen_add_request(struct request_queue *q, struct request *rq)
 {
 	struct zen_data *zdata = zen_get_data(q);
-	const int sync = rq_is_sync(rq);
+	const int dir = rq_data_dir(rq);
 
-	if (zdata->fifo_expire[sync]) {
-		rq_set_fifo_time(rq, jiffies + zdata->fifo_expire[sync]);
-		list_add_tail(&rq->queuelist, &zdata->fifo_list[sync]);
+	if (zdata->fifo_expire[dir]) {
+		rq_set_fifo_time(rq, jiffies + zdata->fifo_expire[dir]);
+		list_add_tail(&rq->queuelist, &zdata->fifo_list[dir]);
 	}
 }
 
@@ -257,7 +257,9 @@ static struct elevator_type iosched_zen = {
 
 static int __init zen_init(void)
 {
-	return elv_register(&iosched_zen);
+	elv_register(&iosched_zen);
+
+	return 0;
 }
 
 static void __exit zen_exit(void)

@@ -98,13 +98,7 @@ struct partition_meta_info {
 
 struct hd_struct {
 	sector_t start_sect;
-	/*
-	 * nr_sects is protected by sequence counter. One might extend a
-	 * partition while IO is happening to it and update of nr_sects
-	 * can be non-atomic on 32bit machines with 64bit sector_t.
-	 */
 	sector_t nr_sects;
-	seqcount_t nr_sects_seq;
 	sector_t alignment_offset;
 	unsigned int discard_alignment;
 	struct device __dev;
@@ -134,7 +128,6 @@ struct hd_struct {
 #define GENHD_FL_EXT_DEVT			64 /* allow extended devt */
 #define GENHD_FL_NATIVE_CAPACITY		128
 #define GENHD_FL_BLOCK_EVENTS_ON_EXCL_WRITE	256
-#define GENHD_FL_NO_PART_SCAN			512
 #ifdef CONFIG_USB_HOST_NOTIFY
 #define GENHD_IF_USB	1
 #endif
@@ -242,10 +235,9 @@ static inline int disk_max_parts(struct gendisk *disk)
 	return disk->minors;
 }
 
-static inline bool disk_part_scan_enabled(struct gendisk *disk)
+static inline bool disk_partitionable(struct gendisk *disk)
 {
-	return disk_max_parts(disk) > 1 &&
-		!(disk->flags & GENHD_FL_NO_PART_SCAN);
+	return disk_max_parts(disk) > 1;
 }
 
 static inline dev_t disk_devt(struct gendisk *disk)
@@ -429,7 +421,7 @@ static inline int get_disk_ro(struct gendisk *disk)
 
 extern void disk_block_events(struct gendisk *disk);
 extern void disk_unblock_events(struct gendisk *disk);
-extern void disk_flush_events(struct gendisk *disk, unsigned int mask);
+extern void disk_check_events(struct gendisk *disk);
 extern unsigned int disk_clear_events(struct gendisk *disk, unsigned int mask);
 
 /* drivers/char/random.c */
@@ -659,57 +651,6 @@ static inline void hd_struct_put(struct hd_struct *part)
 {
 	if (atomic_dec_and_test(&part->ref))
 		__delete_partition(part);
-}
-
-/*
- * Any access of part->nr_sects which is not protected by partition
- * bd_mutex or gendisk bdev bd_mutex, should be done using this
- * accessor function.
- *
- * Code written along the lines of i_size_read() and i_size_write().
- * CONFIG_PREEMPT case optimizes the case of UP kernel with preemption
- * on.
- */
-static inline sector_t part_nr_sects_read(struct hd_struct *part)
-{
-#if BITS_PER_LONG==32 && defined(CONFIG_LBDAF) && defined(CONFIG_SMP)
-	sector_t nr_sects;
-	unsigned seq;
-	do {
-		seq = read_seqcount_begin(&part->nr_sects_seq);
-		nr_sects = part->nr_sects;
-	} while (read_seqcount_retry(&part->nr_sects_seq, seq));
-	return nr_sects;
-#elif BITS_PER_LONG==32 && defined(CONFIG_LBDAF) && defined(CONFIG_PREEMPT)
-	sector_t nr_sects;
-
-	preempt_disable();
-	nr_sects = part->nr_sects;
-	preempt_enable();
-	return nr_sects;
-#else
-	return part->nr_sects;
-#endif
-}
-
-/*
- * Should be called with mutex lock held (typically bd_mutex) of partition
- * to provide mutual exlusion among writers otherwise seqcount might be
- * left in wrong state leaving the readers spinning infinitely.
- */
-static inline void part_nr_sects_write(struct hd_struct *part, sector_t size)
-{
-#if BITS_PER_LONG==32 && defined(CONFIG_LBDAF) && defined(CONFIG_SMP)
-	write_seqcount_begin(&part->nr_sects_seq);
-	part->nr_sects = size;
-	write_seqcount_end(&part->nr_sects_seq);
-#elif BITS_PER_LONG==32 && defined(CONFIG_LBDAF) && defined(CONFIG_PREEMPT)
-	preempt_disable();
-	part->nr_sects = size;
-	preempt_enable();
-#else
-	part->nr_sects = size;
-#endif
 }
 
 #else /* CONFIG_BLOCK */

@@ -1,11 +1,10 @@
 #include <linux/capability.h>
 #include <linux/blkdev.h>
-#include <linux/module.h>
 #include <linux/gfp.h>
 #include <linux/blkpg.h>
 #include <linux/hdreg.h>
 #include <linux/backing-dev.h>
-#include <linux/fs.h>
+#include <linux/buffer_head.h>
 #include <linux/blktrace_api.h>
 #include <asm/uaccess.h>
 
@@ -13,7 +12,7 @@ static int blkpg_ioctl(struct block_device *bdev, struct blkpg_ioctl_arg __user 
 {
 	struct block_device *bdevp;
 	struct gendisk *disk;
-	struct hd_struct *part, *lpart;
+	struct hd_struct *part;
 	struct blkpg_ioctl_arg a;
 	struct blkpg_partition p;
 	struct disk_part_iter piter;
@@ -36,12 +35,12 @@ static int blkpg_ioctl(struct block_device *bdev, struct blkpg_ioctl_arg __user 
 		case BLKPG_ADD_PARTITION:
 			start = p.start >> 9;
 			length = p.length >> 9;
-			/* check for fit in a hd_struct */
-			if (sizeof(sector_t) == sizeof(long) &&
+			/* check for fit in a hd_struct */ 
+			if (sizeof(sector_t) == sizeof(long) && 
 			    sizeof(long long) > sizeof(long)) {
 				long pstart = start, plength = length;
 				if (pstart != start || plength != length
-				    || pstart < 0 || plength < 0 || partno > 65535)
+				    || pstart < 0 || plength < 0)
 					return -EINVAL;
 			}
 
@@ -92,59 +91,6 @@ static int blkpg_ioctl(struct block_device *bdev, struct blkpg_ioctl_arg __user 
 			bdput(bdevp);
 
 			return 0;
-		case BLKPG_RESIZE_PARTITION:
-			start = p.start >> 9;
-			/* new length of partition in bytes */
-			length = p.length >> 9;
-			/* check for fit in a hd_struct */
-			if (sizeof(sector_t) == sizeof(long) &&
-			    sizeof(long long) > sizeof(long)) {
-				long pstart = start, plength = length;
-				if (pstart != start || plength != length
-				    || pstart < 0 || plength < 0)
-					return -EINVAL;
-			}
-			part = disk_get_part(disk, partno);
-			if (!part)
-				return -ENXIO;
-			bdevp = bdget(part_devt(part));
-			if (!bdevp) {
-				disk_put_part(part);
-				return -ENOMEM;
-			}
-			mutex_lock(&bdevp->bd_mutex);
-			mutex_lock_nested(&bdev->bd_mutex, 1);
-			if (start != part->start_sect) {
-				mutex_unlock(&bdevp->bd_mutex);
-				mutex_unlock(&bdev->bd_mutex);
-				bdput(bdevp);
-				disk_put_part(part);
-				return -EINVAL;
-			}
-			/* overlap? */
-			disk_part_iter_init(&piter, disk,
-					    DISK_PITER_INCL_EMPTY);
-			while ((lpart = disk_part_iter_next(&piter))) {
-				if (lpart->partno != partno &&
-				   !(start + length <= lpart->start_sect ||
-				   start >= lpart->start_sect + lpart->nr_sects)
-				   ) {
-					disk_part_iter_exit(&piter);
-					mutex_unlock(&bdevp->bd_mutex);
-					mutex_unlock(&bdev->bd_mutex);
-					bdput(bdevp);
-					disk_put_part(part);
-					return -EBUSY;
-				}
-			}
-			disk_part_iter_exit(&piter);
-			part_nr_sects_write(part, (sector_t)length);
-			i_size_write(bdevp->bd_inode, p.length);
-			mutex_unlock(&bdevp->bd_mutex);
-			mutex_unlock(&bdev->bd_mutex);
-			bdput(bdevp);
-			disk_put_part(part);
-			return 0;
 		default:
 			return -EINVAL;
 	}
@@ -155,7 +101,7 @@ static int blkdev_reread_part(struct block_device *bdev)
 	struct gendisk *disk = bdev->bd_disk;
 	int res;
 
-	if (!disk_part_scan_enabled(disk) || bdev != bdev->bd_contains)	
+	if (!disk_partitionable(disk) || bdev != bdev->bd_contains)
 		return -EINVAL;
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
@@ -233,26 +179,6 @@ int __blkdev_driver_ioctl(struct block_device *bdev, fmode_t mode,
 EXPORT_SYMBOL_GPL(__blkdev_driver_ioctl);
 
 /*
- * Is it an unrecognized ioctl? The correct returns are either
- * ENOTTY (final) or ENOIOCTLCMD ("I don't know this one, try a
- * fallback"). ENOIOCTLCMD gets turned into ENOTTY by the ioctl
- * code before returning.
- *
- * Confused drivers sometimes return EINVAL, which is wrong. It
- * means "I understood the ioctl command, but the parameters to
- * it were wrong".
- *
- * We should aim to just fix the broken drivers, the EINVAL case
- * should go away.
- */
-static inline int is_unrecognized_ioctl(int ret)
-{
-	return	ret == -EINVAL ||
-		ret == -ENOTTY ||
-		ret == -ENOIOCTLCMD;
-}
-
-/*
  * always keep this in sync with compat_blkdev_ioctl()
  */
 int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
@@ -269,7 +195,8 @@ int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 			return -EACCES;
 
 		ret = __blkdev_driver_ioctl(bdev, mode, cmd, arg);
-		if (!is_unrecognized_ioctl(ret))
+		/* -EINVAL to handle old uncorrected drivers */
+		if (ret != -EINVAL && ret != -ENOTTY)
 			return ret;
 
 		fsync_bdev(bdev);
@@ -278,7 +205,8 @@ int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 
 	case BLKROSET:
 		ret = __blkdev_driver_ioctl(bdev, mode, cmd, arg);
-		if (!is_unrecognized_ioctl(ret))
+		/* -EINVAL to handle old uncorrected drivers */
+		if (ret != -EINVAL && ret != -ENOTTY)
 			return ret;
 		if (!capable(CAP_SYS_ADMIN))
 			return -EACCES;
@@ -349,8 +277,6 @@ int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 		return put_uint(arg, bdev_discard_zeroes_data(bdev));
 	case BLKSECTGET:
 		return put_ushort(arg, queue_max_sectors(bdev_get_queue(bdev)));
-	case BLKROTATIONAL:
-		return put_ushort(arg, !blk_queue_nonrot(bdev_get_queue(bdev)));
 	case BLKRASET:
 	case BLKFRASET:
 		if(!capable(CAP_SYS_ADMIN))
