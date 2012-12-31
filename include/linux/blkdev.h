@@ -352,8 +352,7 @@ struct request_queue
 
 	struct queue_limits	limits;
 	bool      notified_urgent;
-	bool      dispatched_urgent;
-
+	struct request    *urgent_req;
 	/*
 	 * sg stuff
 	 */
