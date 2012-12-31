@@ -15,7 +15,6 @@
 #include <linux/slab.h>
 #include <linux/kmod.h>
 #include <linux/kobj_map.h>
-#include <linux/buffer_head.h>
 #include <linux/mutex.h>
 #include <linux/idr.h>
 #include <linux/log2.h>
@@ -155,7 +154,7 @@ struct hd_struct *disk_part_iter_next(struct disk_part_iter *piter)
 		part = rcu_dereference(ptbl->part[piter->idx]);
 		if (!part)
 			continue;
-		if (!part->nr_sects &&
+		if (!part_nr_sects_read(part) &&
 		    !(piter->flags & DISK_PITER_INCL_EMPTY) &&
 		    !(piter->flags & DISK_PITER_INCL_EMPTY_PART0 &&
 		      piter->idx == 0))
@@ -192,7 +191,7 @@ EXPORT_SYMBOL_GPL(disk_part_iter_exit);
 static inline int sector_in_part(struct hd_struct *part, sector_t sector)
 {
 	return part->start_sect <= sector &&
-		sector < part->start_sect + part->nr_sects;
+		sector < part->start_sect + part_nr_sects_read(part);
 }
 
 /**
@@ -508,7 +507,7 @@ static int exact_lock(dev_t devt, void *data)
 	return 0;
 }
 
-void register_disk(struct gendisk *disk)
+static void register_disk(struct gendisk *disk)
 {
 	struct device *ddev = disk_to_dev(disk);
 	struct block_device *bdev;
@@ -537,7 +536,7 @@ void register_disk(struct gendisk *disk)
 	disk->slave_dir = kobject_create_and_add("slaves", &ddev->kobj);
 
 	/* No minors to use for partitions */
-	if (!disk_partitionable(disk))
+	if (!disk_part_scan_enabled(disk))	
 		goto exit;
 
 	/* No such device (e.g., media were just removed) */
@@ -605,7 +604,7 @@ void add_disk(struct gendisk *disk)
 
 	disk_alloc_events(disk);
 
-	/* Register BDI before referencing it from bdev */ 
+	/* Register BDI before referencing it from bdev */
 	bdi = &disk->queue->backing_dev_info;
 	bdi_register_dev(bdi, disk_devt(disk));
 
@@ -618,11 +617,31 @@ void add_disk(struct gendisk *disk)
 	 * Take an extra ref on queue which will be put on disk_release()
 	 * so that it sticks around as long as @disk is there.
 	 */
-	WARN_ON_ONCE(blk_get_queue(disk->queue));
+	WARN_ON_ONCE(!blk_get_queue(disk->queue));
 
 	retval = sysfs_create_link(&disk_to_dev(disk)->kobj, &bdi->dev->kobj,
 				   "bdi");
 	WARN_ON(retval);
+
+	/*
+	 * Limit default readahead size for small devices.
+	 *        disk size    readahead size
+	 *               1M                8k
+	 *               4M               16k
+	 *              16M               32k
+	 *              64M               64k
+	 *             256M              128k
+	 *               1G              256k
+	 *               4G              512k
+	 *              16G             1024k
+	 *              64G             2048k
+	 *             256G             4096k
+	 */
+	if (get_capacity(disk)) {
+		unsigned long size = get_capacity(disk) >> 9;
+		size = 1UL << (ilog2(size) / 2);
+		bdi->ra_pages = min(bdi->ra_pages, size);
+	}
 
 	disk_add_events(disk);
 }
@@ -770,8 +789,8 @@ void __init printk_all_partitions(void)
 
 			printk("%s%s %10llu %s %s", is_part0 ? "" : "  ",
 			       bdevt_str(part_devt(part), devt_buf),
-			       (unsigned long long)part->nr_sects >> 1,
-			       disk_name(disk, part->partno, name_buf),
+			       (unsigned long long)part_nr_sects_read(part) >> 1
+			       , disk_name(disk, part->partno, name_buf),
 			       uuid_buf);
 			if (is_part0) {
 				if (disk->driverfs_dev != NULL &&
@@ -836,7 +855,7 @@ static void disk_seqf_stop(struct seq_file *seqf, void *v)
 
 static void *show_partition_start(struct seq_file *seqf, loff_t *pos)
 {
-	static void *p;
+	void *p;
 
 	p = disk_seqf_start(seqf, pos);
 	if (!IS_ERR_OR_NULL(p) && !*pos)
@@ -852,7 +871,7 @@ static int show_partition(struct seq_file *seqf, void *v)
 	char buf[BDEVNAME_SIZE];
 
 	/* Don't show non-partitionable removeable devices or empty devices */
-	if (!get_capacity(sgp) || (!disk_partitionable(sgp) &&
+	if (!get_capacity(sgp) || (!disk_max_parts(sgp) &&	
 				   (sgp->flags & GENHD_FL_REMOVABLE)))
 		return 0;
 	if (sgp->flags & GENHD_FL_SUPPRESS_PARTITION_INFO)
@@ -863,7 +882,7 @@ static int show_partition(struct seq_file *seqf, void *v)
 	while ((part = disk_part_iter_next(&piter)))
 		seq_printf(seqf, "%4d  %7d %10llu %s\n",
 			   MAJOR(part_devt(part)), MINOR(part_devt(part)),
-			   (unsigned long long)part->nr_sects >> 1,
+			   (unsigned long long)part_nr_sects_read(part) >> 1,
 			   disk_name(sgp, part->partno, buf));
 	disk_part_iter_exit(&piter);
 
@@ -1033,14 +1052,6 @@ static const struct attribute_group *disk_attr_groups[] = {
 	NULL
 };
 
-static void disk_free_ptbl_rcu_cb(struct rcu_head *head)
-{
-	struct disk_part_tbl *ptbl =
-		container_of(head, struct disk_part_tbl, rcu_head);
-
-	kfree(ptbl);
-}
-
 /**
  * disk_replace_part_tbl - replace disk->part_tbl in RCU-safe way
  * @disk: disk to replace part_tbl for
@@ -1061,7 +1072,7 @@ static void disk_replace_part_tbl(struct gendisk *disk,
 
 	if (old_ptbl) {
 		rcu_assign_pointer(old_ptbl->last_lookup, NULL);
-		call_rcu(&old_ptbl->rcu_head, disk_free_ptbl_rcu_cb);
+		kfree_rcu(old_ptbl, rcu_head);
 	}
 }
 
@@ -1186,23 +1197,23 @@ static int diskstats_show(struct seq_file *seqf, void *v)
 				"wsect wuse running use aveq"
 				"\n\n");
 	*/
- 
+
 	disk_part_iter_init(&piter, gp, DISK_PITER_INCL_EMPTY_PART0);
 	while ((hd = disk_part_iter_next(&piter))) {
 		cpu = part_stat_lock();
 		part_round_stats(cpu, hd);
 		part_stat_unlock();
-		seq_printf(seqf, "%4d %7d %s %lu %lu %llu "
-			   "%u %lu %lu %llu %u %u %u %u\n",
+		seq_printf(seqf, "%4d %7d %s %lu %lu %lu "
+			   "%u %lu %lu %lu %u %u %u %u\n",
 			   MAJOR(part_devt(hd)), MINOR(part_devt(hd)),
 			   disk_name(gp, hd->partno, buf),
 			   part_stat_read(hd, ios[READ]),
 			   part_stat_read(hd, merges[READ]),
-			   (unsigned long long)part_stat_read(hd, sectors[READ]),
+			   part_stat_read(hd, sectors[READ]),
 			   jiffies_to_msecs(part_stat_read(hd, ticks[READ])),
 			   part_stat_read(hd, ios[WRITE]),
 			   part_stat_read(hd, merges[WRITE]),
-			   (unsigned long long)part_stat_read(hd, sectors[WRITE]),
+			   part_stat_read(hd, sectors[WRITE]),
 			   jiffies_to_msecs(part_stat_read(hd, ticks[WRITE])),
 			   part_in_flight(hd),
 			   jiffies_to_msecs(part_stat_read(hd, io_ticks)),
@@ -1210,7 +1221,7 @@ static int diskstats_show(struct seq_file *seqf, void *v)
 			);
 	}
 	disk_part_iter_exit(&piter);
- 
+
 	return 0;
 }
 
@@ -1302,6 +1313,16 @@ struct gendisk *alloc_disk_node(int minors, int node_id)
 		}
 		disk->part_tbl->part[0] = &disk->part0;
 
+		/*
+		 * set_capacity() and get_capacity() currently don't use
+		 * seqcounter to read/update the part0->nr_sects. Still init
+		 * the counter as we can read the sectors in IO submission
+		 * patch using seqence counters.
+		 *
+		 * TODO: Ideally set_capacity() and get_capacity() should be
+		 * converted to make use of bd_mutex and sequence counters.
+		 */
+		seqcount_init(&disk->part0.nr_sects_seq);
 		hd_ref_init(&disk->part0);
 
 		disk->minors = minors;
@@ -1514,9 +1535,9 @@ static void __disk_unblock_events(struct gendisk *disk, bool check_now)
 	intv = disk_events_poll_jiffies(disk);
 	set_timer_slack(&ev->dwork.timer, intv / 4);
 	if (check_now)
-		queue_delayed_work(system_nrt_freezable_wq, &ev->dwork, 0);
+		queue_delayed_work(system_freezable_wq, &ev->dwork, 0);
 	else if (intv)
-		queue_delayed_work(system_nrt_freezable_wq, &ev->dwork, intv);
+		queue_delayed_work(system_freezable_wq, &ev->dwork, intv);
 out_unlock:
 	spin_unlock_irqrestore(&ev->lock, flags);
 }
@@ -1538,30 +1559,32 @@ void disk_unblock_events(struct gendisk *disk)
 }
 
 /**
- * disk_check_events - schedule immediate event checking
- * @disk: disk to check events for
+ * disk_flush_events - schedule immediate event checking and flushing
+ * @disk: disk to check and flush events for
+ * @mask: events to flush
  *
- * Schedule immediate event checking on @disk if not blocked.
+ * Schedule immediate event checking on @disk if not blocked.  Events in
+ * @mask are scheduled to be cleared from the driver.  Note that this
+ * doesn't clear the events from @disk->ev.
  *
  * CONTEXT:
- * Don't care.  Safe to call from irq context.
+ * If @mask is non-zero must be called with bdev->bd_mutex held.
  */
-void disk_check_events(struct gendisk *disk)
+void disk_flush_events(struct gendisk *disk, unsigned int mask)
 {
 	struct disk_events *ev = disk->ev;
-	unsigned long flags;
 
 	if (!ev)
 		return;
 
-	spin_lock_irqsave(&ev->lock, flags);
+	spin_lock_irq(&ev->lock);
+	ev->clearing |= mask;
 	if (!ev->block) {
 		cancel_delayed_work(&ev->dwork);
-		queue_delayed_work(system_nrt_freezable_wq, &ev->dwork, 0);
+		queue_delayed_work(system_freezable_wq, &ev->dwork, 0);
 	}
-	spin_unlock_irqrestore(&ev->lock, flags);
+	spin_unlock_irq(&ev->lock);
 }
-EXPORT_SYMBOL_GPL(disk_check_events);
 
 /**
  * disk_clear_events - synchronously check, clear and return pending events
@@ -1595,7 +1618,7 @@ unsigned int disk_clear_events(struct gendisk *disk, unsigned int mask)
 
 	/* uncondtionally schedule event check and wait for it to finish */
 	disk_block_events(disk);
-	queue_delayed_work(system_nrt_freezable_wq, &ev->dwork, 0);
+	queue_delayed_work(system_freezable_wq, &ev->dwork, 0);
 	flush_delayed_work(&ev->dwork);
 	__disk_unblock_events(disk, false);
 
@@ -1635,7 +1658,7 @@ static void disk_events_workfn(struct work_struct *work)
 
 	intv = disk_events_poll_jiffies(disk);
 	if (!ev->block && intv)
-		queue_delayed_work(system_nrt_freezable_wq, &ev->dwork, intv);
+		queue_delayed_work(system_freezable_wq, &ev->dwork, intv);
 
 	spin_unlock_irq(&ev->lock);
 
@@ -1759,7 +1782,7 @@ static int disk_events_set_dfl_poll_msecs(const char *val,
 	mutex_lock(&disk_events_mutex);
 
 	list_for_each_entry(ev, &disk_events, node)
-		disk_check_events(ev->disk);
+		disk_flush_events(ev->disk, 0);
 
 	mutex_unlock(&disk_events_mutex);
 
