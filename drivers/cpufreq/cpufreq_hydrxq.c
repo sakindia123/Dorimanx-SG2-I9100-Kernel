@@ -390,12 +390,12 @@ static inline void fix_screen_off_min_step(struct cpufreq_hydrx_cpuinfo *pcpu) {
 	
 	if (DEFAULT_SCREEN_OFF_MIN_STEP == screen_off_min_step) 
 		for(screen_off_min_step=0;
-		pcpu->hydrfreq_table[screen_off_min_step].frequency != 200000;
+		pcpu->hydrfreq_table[screen_off_min_step].frequency != 100000;
 		screen_off_min_step++);
 	
 	if (screen_off_min_step >= pcpu->hydrfreq_table_size)
 		for(screen_off_min_step=0;
-		pcpu->hydrfreq_table[screen_off_min_step].frequency != 200000;
+		pcpu->hydrfreq_table[screen_off_min_step].frequency != 100000;
 		screen_off_min_step++);
 }
 
