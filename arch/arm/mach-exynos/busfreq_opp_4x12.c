@@ -1076,7 +1076,7 @@ int exynos4x12_init(struct device *dev, struct busfreq_data *data)
 }
 
 /* sysfs interface for internal voltage control */
-ssize_t show_int_mV_table(struct cpufreq_policy *policy, char *buf) {
+/*ssize_t show_int_mV_table(struct cpufreq_policy *policy, char *buf) {
 
 int i, len = 0;
 if (buf) {
@@ -1115,3 +1115,4 @@ exynos4_busfreq_table[i].volt = u[i]*1000;
 }
 return count;
 }
+*/
