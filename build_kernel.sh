@@ -125,15 +125,15 @@ rm -f $KERNELDIR/boot.img.pre
 cp $KERNELDIR/.config $KERNELDIR/arch/arm/configs/halaszk_defconfig
 cp $KERNELDIR/.config $KERNELDIR/READY/
 rm $KERNELDIR/READY/boot/zImage
-rm $KERNELDIR/READY/Kernel_Siyah-halaszk-*
+rm $KERNELDIR/READY/Kernel_Siyah-*
 stat $KERNELDIR/boot.img
 cp $KERNELDIR/boot.img /$KERNELDIR/READY/boot/
 cd $KERNELDIR/READY/
-GETVER=`grep 'Siyah-.*-V' arch/arm/configs/halaszk_defconfig | sed 's/.*".//g' | sed 's/-I.*//g'`
+GETVER=`grep 'Siyah-.*-V' .config | sed 's/.*".//g' | sed 's/-I.*//g'`
 zip -r Kernel_$GETVER-`date +"-[%H-%M]-[%d-%m]-SGSIII-PWR-CORE"`.zip .
 rm $KERNELDIR/boot.img
 rm $KERNELDIR/READY/boot/boot.img
 rm $KERNELDIR/READY/.config
-mv $KERNELDIR/READY/Kernel_Siyah-halaszk-* $KERNELDIR/SGSIII/
+mv $KERNELDIR/READY/Kernel_Siyah-* $KERNELDIR/SGSIII/
 ncftpput -f /home/halaszk/login.cfg -V -R / $KERNELDIR/SGSIII/
-rm $KERNELDIR/SGSIII/Kernel_Siyah-halaszk-*
+rm $KERNELDIR/SGSIII/Kernel_Siyah-*
