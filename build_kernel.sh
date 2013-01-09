@@ -8,6 +8,7 @@ export INITRAMFS_SOURCE=`readlink -f $KERNELDIR/../initramfs3`
 # kernel
 export ARCH=arm
 export USE_SEC_FIPS_MODE=true
+export KERNEL_CONFIG="halaszk_defconfig"
 
 # build script
 export USER=`whoami`
@@ -23,19 +24,19 @@ GCCVERSION_OLD=`${CROSS_COMPILE}gcc --version | cut -d " " -f3 | cut -c3-5 | gre
 GCCVERSION_NEW=`${CROSS_COMPILE}gcc --version | cut -d " " -f4 | cut -c1-3 | grep -iv "Fre" | grep -iv "sof" | grep -iv "for" | grep -iv "auc"`
 
 if [ "a$GCCVERSION_OLD" == "a4.3" ]; then
-        cp $KERNELDIR/arch/arm/boot/compressed/Makefile_old_gcc $KERNELDIR/arch/arm/boot/compressed/Makefile
+        cp $KERNELDIR/arch/arm/boot/compressed/Makefile_old_gcc ${KERNELDIR}/arch/arm/boot/compressed/Makefile
         echo "GCC 4.3.X Compiler Detected, building"
 elif [ "a$GCCVERSION_OLD" == "a4.4" ]; then
-        cp $KERNELDIR/arch/arm/boot/compressed/Makefile_old_gcc $KERNELDIR/arch/arm/boot/compressed/Makefile
+        cp ${KERNELDIR}/arch/arm/boot/compressed/Makefile_old_gcc ${KERNELDIR}/arch/arm/boot/compressed/Makefile
         echo "GCC 4.4.X Compiler Detected, building"
 elif [ "a$GCCVERSION_OLD" == "a4.5" ]; then
-        cp $KERNELDIR/arch/arm/boot/compressed/Makefile_old_gcc $KERNELDIR/arch/arm/boot/compressed/Makefile
+        cp ${KERNELDIR}/arch/arm/boot/compressed/Makefile_old_gcc ${KERNELDIR}/arch/arm/boot/compressed/Makefile
         echo "GCC 4.5.X Compiler Detected, building"
 elif [ "a$GCCVERSION_NEW" == "a4.6" ]; then
-        cp $KERNELDIR/arch/arm/boot/compressed/Makefile_linaro $KERNELDIR/arch/arm/boot/compressed/Makefile
+        cp ${KERNELDIR}/arch/arm/boot/compressed/Makefile_linaro ${KERNELDIR}/arch/arm/boot/compressed/Makefile
         echo "GCC 4.6.X Compiler Detected, building"
 elif [ "a$GCCVERSION_NEW" == "a4.7" ]; then
-        cp $KERNELDIR/arch/arm/boot/compressed/Makefile_linaro $KERNELDIR/arch/arm/boot/compressed/Makefile
+        cp ${KERNELDIR}/arch/arm/boot/compressed/Makefile_linaro ${KERNELDIR}/arch/arm/boot/compressed/Makefile
         echo "GCC 4.7.X Compiler Detected, building"
 else
         echo "Compiler not recognized! please fix the CUT function to match your compiler."
@@ -47,28 +48,28 @@ NAMBEROFCPUS=`grep 'processor' /proc/cpuinfo | wc -l`
 
 INITRAMFS_TMP="/tmp/initramfs-source"
 
-if [ ! -f $KERNELDIR/.config ]; then
-        cp $KERNELDIR/arch/arm/configs/halaszk_defconfig .config
-        make halaszk_defconfig
+if [ ! -f ${KERNELDIR}/.config ]; then
+        cp ${KERNELDIR}/arch/arm/configs/arch/${KERNEL_CONFIG} .config
+        make arch/arm/configs/
 fi;
 
 
-. $KERNELDIR/.config
+. ${KERNELDIR}/.config
 
-cd $KERNELDIR/
+cd ${KERNELDIR}/
 nice -n 10 make -j2 || exit 1
 
 # remove previous zImage files
-if [ -e $KERNELDIR/zImage ]; then
-rm $KERNELDIR/zImage
+if [ -e ${KERNELDIR}/zImage ]; then
+rm ${KERNELDIR}/zImage
 fi;
 
-if [ -e $KERNELDIR/arch/arm/boot/zImage ]; then
-rm $KERNELDIR/arch/arm/boot/zImage
+if [ -e ${KERNELDIR}/arch/arm/boot/zImage ]; then
+rm ${KERNELDIR}/arch/arm/boot/zImage
 fi;
 
 # remove all old modules before compile
-cd $KERNELDIR
+cd ${KERNELDIR}
 
 OLDMODULES=`find -name *.ko`
 for i in $OLDMODULES; do
@@ -116,24 +117,24 @@ gzip -9 $INITRAMFS_TMP.cpio
 cd -
 nice -n 10 make -j2 zImage || exit 1
 
-./mkbootimg --kernel $KERNELDIR/arch/arm/boot/zImage --ramdisk $INITRAMFS_TMP.cpio.gz --board smdk4x12 --base 0x10000000 --pagesize 2048 --ramdiskaddr 0x11000000 -o $KERNELDIR/boot.img.pre
+./mkbootimg --kernel ${KERNELDIR}/arch/arm/boot/zImage --ramdisk $INITRAMFS_TMP.cpio.gz --board smdk4x12 --base 0x10000000 --pagesize 2048 --ramdiskaddr 0x11000000 -o ${KERNELDIR}/boot.img.pre
 
-$KERNELDIR/mkshbootimg.py $KERNELDIR/boot.img $KERNELDIR/boot.img.pre $KERNELDIR/payload.tar
-rm -f $KERNELDIR/boot.img.pre
+${KERNELDIR}/mkshbootimg.py ${KERNELDIR}/boot.img ${KERNELDIR}/boot.img.pre ${KERNELDIR}/payload.tar
+rm -f ${KERNELDIR}/boot.img.pre
 
 	# copy all needed to ready kernel folder.
-cp $KERNELDIR/.config $KERNELDIR/arch/arm/configs/halaszk_defconfig
-cp $KERNELDIR/.config $KERNELDIR/READY/
-rm $KERNELDIR/READY/boot/zImage
-rm $KERNELDIR/READY/Kernel_Siyah-*
-stat $KERNELDIR/boot.img
-cp $KERNELDIR/boot.img /$KERNELDIR/READY/boot/
-cd $KERNELDIR/READY/
-GETVER=`grep 'Siyah-.*-V' .config | sed 's/.*".//g' | sed 's/-I.*//g'`
+cp ${KERNELDIR}/.config ${KERNELDIR}/arch/arm/configs/${KERNEL_CONFIG}
+cp ${KERNELDIR}/.config ${KERNELDIR}/READY/
+rm ${KERNELDIR}/READY/boot/zImage
+rm ${KERNELDIR}/READY/Kernel_Siyah-*
+stat ${KERNELDIR}/boot.img
+cp ${KERNELDIR}/boot.img /${KERNELDIR}/READY/boot/
+cd ${KERNELDIR}/READY/
+GETVER=`grep 'Siyah-.*-V' arch/arm/configs/${KERNEL_CONFIG} | sed 's/.*".//g' | sed 's/-S.*//g'`
 zip -r Kernel_$GETVER-`date +"-[%H-%M]-[%d-%m]-SGSIII-PWR-CORE"`.zip .
-rm $KERNELDIR/boot.img
-rm $KERNELDIR/READY/boot/boot.img
-rm $KERNELDIR/READY/.config
-mv $KERNELDIR/READY/Kernel_Siyah-* $KERNELDIR/SGSIII/
-ncftpput -f /home/halaszk/login.cfg -V -R / $KERNELDIR/SGSIII/
-rm $KERNELDIR/SGSIII/Kernel_Siyah-*
+rm ${KERNELDIR}/boot.img
+rm ${KERNELDIR}/READY/boot/boot.img
+rm ${KERNELDIR}/READY/.config
+mv ${KERNELDIR}/READY/Kernel_Siyah-* ${KERNELDIR}/SGSIII/
+ncftpput -f /home/halaszk/login.cfg -V -R / ${KERNELDIR}/SGSIII/
+rm ${KERNELDIR}/SGSIII/Kernel_Siyah-*
