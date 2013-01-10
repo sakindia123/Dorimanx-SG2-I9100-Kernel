@@ -50,7 +50,7 @@ INITRAMFS_TMP="/tmp/initramfs-source"
 
 if [ ! -f ${KERNELDIR}/.config ]; then
         cp ${KERNELDIR}/arch/arm/configs/arch/${KERNEL_CONFIG} .config
-        make arch/arm/configs/
+        make ${KERNEL_CONFIG}
 fi;
 
 
@@ -126,15 +126,15 @@ rm -f ${KERNELDIR}/boot.img.pre
 cp ${KERNELDIR}/.config ${KERNELDIR}/arch/arm/configs/${KERNEL_CONFIG}
 cp ${KERNELDIR}/.config ${KERNELDIR}/READY/
 rm ${KERNELDIR}/READY/boot/zImage
-rm ${KERNELDIR}/READY/Kernel_Siyah-*
+rm ${KERNELDIR}/READY/Kernel_*
 stat ${KERNELDIR}/boot.img
 cp ${KERNELDIR}/boot.img /${KERNELDIR}/READY/boot/
 cd ${KERNELDIR}/READY/
-GETVER=`grep 'Siyah-.*-V' arch/arm/configs/${KERNEL_CONFIG} | sed 's/.*".//g' | sed 's/-S.*//g'`
+GETVER=`grep 'Siyah-.*-V' .config | sed 's/.*".//g' | sed 's/-S.*//g'`
 zip -r Kernel_$GETVER-`date +"-[%H-%M]-[%d-%m]-SGSIII-PWR-CORE"`.zip .
 rm ${KERNELDIR}/boot.img
 rm ${KERNELDIR}/READY/boot/boot.img
 rm ${KERNELDIR}/READY/.config
-mv ${KERNELDIR}/READY/Kernel_Siyah-* ${KERNELDIR}/SGSIII/
+mv ${KERNELDIR}/READY/Kernel_* ${KERNELDIR}/SGSIII/
 ncftpput -f /home/halaszk/login.cfg -V -R / ${KERNELDIR}/SGSIII/
-rm ${KERNELDIR}/SGSIII/Kernel_Siyah-*
+rm ${KERNELDIR}/SGSIII/Kernel_*
