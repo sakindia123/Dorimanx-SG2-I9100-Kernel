@@ -49,7 +49,7 @@ NAMBEROFCPUS=`grep 'processor' /proc/cpuinfo | wc -l`
 INITRAMFS_TMP="/tmp/initramfs-source"
 
 if [ ! -f ${KERNELDIR}/.config ]; then
-        cp ${KERNELDIR}/arch/arm/configs/arch/${KERNEL_CONFIG} .config
+        cp ${KERNELDIR}/arch/arm/configs/${KERNEL_CONFIG} .config
         make ${KERNEL_CONFIG}
 fi;
 
