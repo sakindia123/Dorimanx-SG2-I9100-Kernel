@@ -691,7 +691,7 @@ int power_mode = PM_MAX;
 				dhd->early_suspended = 1;
 #endif
 				/* Kernel suspended */
-				DHD_ERROR(("%s: force extra Suspend setting \n", __FUNCTION__));
+				DHD_ERROR(("%s: force extra Suspend setting\n", __FUNCTION__));
 
 #ifdef CONFIG_BCMDHD_WIFI_PM
 dhd_wl_ioctl_cmd(dhd, WLC_SET_PM, (char *)&power_mode,
@@ -742,7 +742,7 @@ sizeof(power_mode), TRUE, 0);
 				dhd->early_suspended = 0;
 #endif
 				/* Kernel resumed  */
-				DHD_TRACE(("%s: Remove extra suspend setting \n", __FUNCTION__));
+				DHD_ERROR(("%s: Remove extra suspend setting\n", __FUNCTION__));
 
 #ifdef CONFIG_BCMDHD_WIFI_PM
 dhd_wl_ioctl_cmd(dhd, WLC_SET_PM, (char *)&power_mode,
