@@ -376,6 +376,7 @@ static s32 wl_inform_bss(struct wl_priv *wl);
 static s32 wl_inform_single_bss(struct wl_priv *wl, struct wl_bss_info *bi);
 static s32 wl_update_bss_info(struct wl_priv *wl, struct net_device *ndev);
 static chanspec_t wl_cfg80211_get_shared_freq(struct wiphy *wiphy);
+static s32 wl_cfg80211_40MHz_to_20MHz_Channel(chanspec_t chspec);
 
 static s32 wl_add_keyext(struct wiphy *wiphy, struct net_device *dev,
 	u8 key_idx, const u8 *mac_addr,
@@ -849,6 +850,8 @@ static void swap_key_to_BE(struct wl_wsec_key *key)
 }
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 4, 0)
+
+
 /* For debug: Dump the contents of the encoded wps ie buffe */
 static void
 wl_validate_wps_ie(char *wps_ie, s32 wps_ie_len, bool *pbc)
@@ -934,6 +937,37 @@ wl_validate_wps_ie(char *wps_ie, s32 wps_ie_len, bool *pbc)
 }
 #endif /* LINUX_VERSION_CODE < KERNEL_VERSION(3, 4, 0) */
 
+static s32
+wl_cfg80211_40MHz_to_20MHz_Channel(chanspec_t chspec)
+{
+	u32 channel = chspec & WL_CHANSPEC_CHAN_MASK;
+
+	/* If chspec is not for 40MHz. Do nothing */
+	if (!(chspec & WL_CHANSPEC_BW_40))
+		return channel;
+
+	if ((channel < 0) || (channel > MAXCHANNEL))
+		return -1;
+
+	switch (channel) {
+		/* 5G Channels */
+		case 38:
+		case 46:
+		case 151:
+		case 159:
+			if (chspec & WL_CHANSPEC_CTL_SB_LOWER)
+				channel = channel - CH_10MHZ_APART;
+			else if (chspec & WL_CHANSPEC_CTL_SB_UPPER)
+				channel = channel + CH_10MHZ_APART;
+			break;
+		default:
+			/* Mhz adjustment not required. Use as is */
+			WL_ERR(("Unsupported channel: %d \n", channel));
+	}
+
+	return channel;
+}
+
 static chanspec_t wl_cfg80211_get_shared_freq(struct wiphy *wiphy)
 {
 	chanspec_t chspec;
@@ -962,7 +996,12 @@ static chanspec_t wl_cfg80211_get_shared_freq(struct wiphy *wiphy)
 	else {
 			bss = (struct wl_bss_info *) (wl->extra_buf + 4);
 			chspec =  bss->chanspec;
-			WL_DBG(("Valid BSS Found. chanspec:%d \n", bss->chanspec));
+				if (chspec & WL_CHANSPEC_BW_40) {
+				uint32 channel = wl_cfg80211_40MHz_to_20MHz_Channel(chspec);
+				chspec = wl_ch_host_to_driver(channel);
+			}
+
+			WL_DBG(("Valid BSS Found. chanspec:%d \n", chspec));
 	}
 	return chspec;
 }
@@ -1833,6 +1872,9 @@ wl_run_escan(struct wl_priv *wl, struct net_device *ndev,
 
 #endif /* USE_INITIAL_2G_SCAN */
 
+/* if scan request is not empty parse scan request paramters */
+
+		if (request != NULL) {
 			n_channels = request->n_channels;
 			n_ssids = request->n_ssids;
 			/* Allocate space for populating ssids in wl_iscan_params struct */
@@ -1844,6 +1886,7 @@ wl_run_escan(struct wl_priv *wl, struct net_device *ndev,
 
 			/* Allocate space for populating ssids in wl_iscan_params struct */
 			params_size += sizeof(struct wlc_ssid) * n_ssids;
+			}
 		params = (wl_escan_params_t *) kzalloc(params_size, GFP_KERNEL);
 		if (params == NULL) {
 			err = -ENOMEM;
@@ -6459,7 +6502,7 @@ wl_notify_connect_status(struct wl_priv *wl, struct net_device *ndev,
 				printk("link down if %s may call cfg80211_disconnected. "
 					"event : %d, reason=%d from " MACDBG "\n",
 					ndev->name, event, ntoh32(e->reason),
-					STR_TO_MACD((u8*)(&e->addr)));
+					MAC2STRDBG((u8*)(&e->addr)));
 				if (memcmp(curbssid, &e->addr, ETHER_ADDR_LEN) != 0) {
 					WL_ERR(("BSSID of event is not the connected BSSID"
 						"(ignore it) cur: " MACDBG " event: " MACDBG"\n",
@@ -6669,6 +6712,7 @@ static s32 wl_update_bss_info(struct wl_priv *wl, struct net_device *ndev)
 	s32 dtim_period;
 	size_t ie_len;
 	u8 *ie;
+	u8 *ssidie;
 	u8 *curbssid;
 	s32 err = 0;
 	struct wiphy *wiphy;
@@ -6699,6 +6743,13 @@ static s32 wl_update_bss_info(struct wl_priv *wl, struct net_device *ndev)
 			err = -EIO;
 			goto update_bss_info_out;
 		}
+
+		ie = ((u8 *)bi) + bi->ie_offset;
+		ie_len = bi->ie_length;
+		ssidie = (u8 *)cfg80211_find_ie(WLAN_EID_SSID, ie, ie_len);
+		if (ssidie && ssidie[1] == bi->SSID_len && !ssidie[2] && bi->SSID[0])
+			memcpy(ssidie + 2, bi->SSID, bi->SSID_len);
+
 		err = wl_inform_single_bss(wl, bi);
 		if (unlikely(err))
 			goto update_bss_info_out;
