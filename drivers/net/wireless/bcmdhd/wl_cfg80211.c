@@ -6516,10 +6516,10 @@ wl_notify_connect_status(struct wl_priv *wl, struct net_device *ndev,
 				/* WLAN_REASON_UNSPECIFIED is used for hang up event in Android */
 				reason = (reason == WLAN_REASON_UNSPECIFIED)? 0 : reason;
 
-				printk("link down if %s may call cfg80211_disconnected. "
+/*				printk("link down if %s may call cfg80211_disconnected. "
 					"event : %d, reason=%d from " MACDBG "\n",
 					ndev->name, event, ntoh32(e->reason),
-					MAC2STRDBG((u8*)(&e->addr)));
+					MAC2STRDBG((u8*)(&e->addr)));*/
 				if (memcmp(curbssid, &e->addr, ETHER_ADDR_LEN) != 0) {
 					WL_ERR(("BSSID of event is not the connected BSSID"
 						"(ignore it) cur: " MACDBG " event: " MACDBG"\n",
