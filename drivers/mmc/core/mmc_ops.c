@@ -22,6 +22,10 @@
 #include "core.h"
 #include "mmc_ops.h"
 
+#include "emmc_fw_date.h"
+
+u32 emmc_firmware_date=0;
+
 static int _mmc_select_card(struct mmc_host *host, struct mmc_card *card)
 {
 	int err;
@@ -705,6 +709,8 @@ int mmc_start_movi_smart(struct mmc_card *card)
 
 	date = ((data_buf[327] << 24) | (data_buf[326] << 16) |
 				(data_buf[325] << 8) | data_buf[324]);
+
+	emmc_firmware_date = date;
 
 	if (date !=  0x20120413) {
 		err = -1;
