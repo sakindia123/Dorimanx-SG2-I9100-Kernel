@@ -42,6 +42,7 @@
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/mm_inline.h>
+#include <linux/earlysuspend.h>
 
 static uint32_t lowmem_debug_level = 1;
 static int lowmem_adj[] = {
@@ -58,6 +59,22 @@ static int lowmem_minfree[] = {
 	15360,
 	17920,
 	20480,
+};
+static int lowmem_minfree_screen_off[] = {
+	3 * 512,	/* 6MB */
+	2 * 1024,	/* 8MB */
+	4 * 1024,	/* 16MB */
+	5 * 1024,	/* 20MB */
+	8 * 1024,	/* 32MB */
+	16 * 1024,	/* 64MB */
+};
+static int lowmem_minfree_screen_on[] = {
+	3 * 512,	/* 6MB */
+	2 * 1024,	/* 8MB */
+	4 * 1024,	/* 16MB */
+	5 * 1024,	/* 20MB */
+	8 * 1024,	/* 32MB */
+	16 * 1024,	/* 64MB */
 };
 static int lowmem_minfree_size = ARRAY_SIZE(lowmem_minfree);
 
@@ -202,6 +219,22 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 static struct shrinker lowmem_shrinker = {
 	.shrink = lowmem_shrink,
 	.seeks = DEFAULT_SEEKS * 16
+};
+
+static void low_mem_early_suspend(struct early_suspend *handler)
+{
+	memcpy(lowmem_minfree_screen_on, lowmem_minfree, sizeof(lowmem_minfree));
+	memcpy(lowmem_minfree, lowmem_minfree_screen_off, sizeof(lowmem_minfree_screen_off));
+}
+
+static void low_mem_late_resume(struct early_suspend *handler)
+{
+	memcpy(lowmem_minfree, lowmem_minfree_screen_on, sizeof(lowmem_minfree_screen_on));
+}
+
+static struct early_suspend low_mem_suspend = {
+	.suspend = low_mem_early_suspend,
+	.resume = low_mem_late_resume,
 };
 
 #ifdef CONFIG_ZRAM_FOR_ANDROID
@@ -401,6 +434,7 @@ static int __init lowmem_init(void)
 	unsigned int high_wmark = 0;
 	unsigned int low_wmark = 0;
 #endif
+	register_early_suspend(&low_mem_suspend);
 	register_shrinker(&lowmem_shrinker);
 
 #ifdef CONFIG_ZRAM_FOR_ANDROID
@@ -444,6 +478,7 @@ module_param_array_named(adj, lowmem_adj, int, &lowmem_adj_size,
 module_param_array_named(minfree, lowmem_minfree, uint, &lowmem_minfree_size,
 			 S_IRUGO | S_IWUSR);
 module_param_named(debug_level, lowmem_debug_level, uint, S_IRUGO | S_IWUSR);
+module_param_array_named(minfree_screen_off, lowmem_minfree_screen_off, uint, &lowmem_minfree_size, S_IRUGO | S_IWUSR);
 
 module_init(lowmem_init);
 module_exit(lowmem_exit);
