@@ -57,7 +57,7 @@ fi;
 . ${KERNELDIR}/.config
 
 cd ${KERNELDIR}/
-nice -n 10 make -j2 || exit 1
+nice -n 10 make -j4 || exit 1
 
 # remove previous zImage files
 if [ -e ${KERNELDIR}/zImage ]; then
