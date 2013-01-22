@@ -209,7 +209,6 @@ static inline void clear_highpage(struct page *page)
 
 static inline void sanitize_highpage(struct page *page)
 {
-	void *kaddr;
 	void *kaddr = kmap_atomic(page);
 	unsigned long flags;
 
