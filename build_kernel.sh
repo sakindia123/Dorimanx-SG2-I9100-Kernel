@@ -115,7 +115,7 @@ find | fakeroot cpio -H newc -o > $INITRAMFS_TMP.cpio 2>/dev/null
 ls -lh $INITRAMFS_TMP.cpio
 gzip -9 $INITRAMFS_TMP.cpio
 cd -
-nice -n 10 make -j2 zImage || exit 1
+nice -n 10 make -j4 zImage || exit 1
 
 ./mkbootimg --kernel ${KERNELDIR}/arch/arm/boot/zImage --ramdisk $INITRAMFS_TMP.cpio.gz --board smdk4x12 --base 0x10000000 --pagesize 2048 --ramdiskaddr 0x11000000 -o ${KERNELDIR}/boot.img.pre
 
@@ -136,5 +136,5 @@ rm ${KERNELDIR}/boot.img
 rm ${KERNELDIR}/READY/boot/boot.img
 rm ${KERNELDIR}/READY/.config
 mv ${KERNELDIR}/READY/Kernel_* ${KERNELDIR}/SGSIII/
-ncftpput -f /home/halaszk/login.cfg -V -R / ${KERNELDIR}/SGSIII/
-rm ${KERNELDIR}/SGSIII/Kernel_*
+#ncftpput -f /home/halaszk/login.cfg -V -R / ${KERNELDIR}/SGSIII/
+#rm ${KERNELDIR}/SGSIII/Kernel_*
