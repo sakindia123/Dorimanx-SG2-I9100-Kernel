@@ -63,12 +63,12 @@
 
 #if defined(CONFIG_MACH_MIDAS) || defined(CONFIG_MACH_SMDK4X12) \
 	|| defined(CONFIG_MACH_SLP_PQ)
-#define TRANS_LOAD_H0 20
-#define TRANS_LOAD_L1 10
-#define TRANS_LOAD_H1 35
-#define TRANS_LOAD_L2 15
-#define TRANS_LOAD_H2 45
-#define TRANS_LOAD_L3 20
+#define TRANS_LOAD_H0 10
+#define TRANS_LOAD_L1 5
+#define TRANS_LOAD_H1 75
+#define TRANS_LOAD_L2 35
+#define TRANS_LOAD_H2 95
+#define TRANS_LOAD_L3 45
 
 #define BOOT_DELAY	60
 
@@ -81,15 +81,15 @@
 #endif
 #endif
 
-#define TRANS_RQ 2
-#define TRANS_LOAD_RQ 20
+#define TRANS_RQ 1
+#define TRANS_LOAD_RQ 10
 
 #define CPU_OFF 0
 #define CPU_ON  1
 
 #define HOTPLUG_UNLOCKED 0
 #define HOTPLUG_LOCKED 1
-#define PM_HOTPLUG_DEBUG 0
+#define PM_HOTPLUG_DEBUG 1
 #define NUM_CPUS num_possible_cpus()
 #define CPULOAD_TABLE (NR_CPUS + 1)
 
