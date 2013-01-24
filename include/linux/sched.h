@@ -90,7 +90,6 @@ struct sched_param {
 #include <linux/task_io_accounting.h>
 #include <linux/latencytop.h>
 #include <linux/cred.h>
-#include <linux/llist.h>
 
 #include <asm/processor.h>
 
@@ -1230,7 +1229,7 @@ struct task_struct {
 	unsigned int ptrace;
 
 #ifdef CONFIG_SMP
-	struct llist_node wake_entry;
+	struct task_struct *wake_entry;
 	int on_cpu;
 #endif
 	int on_rq;
