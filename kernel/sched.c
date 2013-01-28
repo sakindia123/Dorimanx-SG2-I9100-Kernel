@@ -473,6 +473,11 @@ struct rq {
 #endif
 	int skip_clock_update;
 
+	/* time-based average load */
+	u64 nr_last_stamp;
+	unsigned int ave_nr_running;
+	seqcount_t ave_seqcnt;
+
 	/* capture load from *all* tasks on this cpu: */
 	struct load_weight load;
 	unsigned long nr_load_updates;
@@ -628,14 +633,18 @@ static inline struct task_group *task_group(struct task_struct *p)
 /* Change a task's cfs_rq and parent entity if it moves across CPUs/groups */
 static inline void set_task_rq(struct task_struct *p, unsigned int cpu)
 {
+#if defined(CONFIG_FAIR_GROUP_SCHED) || defined(CONFIG_RT_GROUP_SCHED)
+	struct task_group *tg = task_group(p);
+#endif
+
 #ifdef CONFIG_FAIR_GROUP_SCHED
-	p->se.cfs_rq = task_group(p)->cfs_rq[cpu];
-	p->se.parent = task_group(p)->se[cpu];
+	p->se.cfs_rq = tg->cfs_rq[cpu];
+	p->se.parent = tg->se[cpu];
 #endif
 
 #ifdef CONFIG_RT_GROUP_SCHED
-	p->rt.rt_rq  = task_group(p)->rt_rq[cpu];
-	p->rt.parent = task_group(p)->rt_se[cpu];
+	p->rt.rt_rq  = tg->rt_rq[cpu];
+	p->rt.parent = tg->rt_se[cpu];
 #endif
 }
 
@@ -1795,14 +1804,48 @@ static const struct sched_class rt_sched_class;
 
 #include "sched_stats.h"
 
+/* 27 ~= 134217728ns = 134.2ms
+ * 26 ~=  67108864ns =  67.1ms
+ * 25 ~=  33554432ns =  33.5ms
+ * 24 ~=  16777216ns =  16.8ms */
+#define NR_AVE_PERIOD_EXP	27
+#define NR_AVE_SCALE(x)		((x) << FSHIFT)
+#define NR_AVE_PERIOD		(1 << NR_AVE_PERIOD_EXP)
+#define NR_AVE_DIV_PERIOD(x)	((x) >> NR_AVE_PERIOD_EXP)
+
+static inline unsigned int do_avg_nr_running(struct rq *rq)
+{
+	s64 nr, deltax;
+	unsigned int ave_nr_running = rq->ave_nr_running;
+
+	deltax = rq->clock_task - rq->nr_last_stamp;
+	nr = NR_AVE_SCALE(rq->nr_running);
+
+	if (deltax > NR_AVE_PERIOD)
+		ave_nr_running = nr;
+	else
+		ave_nr_running +=
+			NR_AVE_DIV_PERIOD(deltax * (nr - ave_nr_running));
+
+	return ave_nr_running;
+}
+
 static void inc_nr_running(struct rq *rq)
 {
+	write_seqcount_begin(&rq->ave_seqcnt);
+	rq->ave_nr_running = do_avg_nr_running(rq);
+	rq->nr_last_stamp = rq->clock_task;
 	rq->nr_running++;
+	write_seqcount_end(&rq->ave_seqcnt);
 }
 
 static void dec_nr_running(struct rq *rq)
 {
+	write_seqcount_begin(&rq->ave_seqcnt);
+	rq->ave_nr_running = do_avg_nr_running(rq);
+	rq->nr_last_stamp = rq->clock_task;
 	rq->nr_running--;
+	write_seqcount_end(&rq->ave_seqcnt);
 }
 
 static void set_load_weight(struct task_struct *p)
@@ -3283,6 +3326,33 @@ unsigned long nr_iowait(void)
 	return sum;
 }
 
+unsigned long avg_nr_running(void)
+{
+	unsigned long i, sum = 0;
+	unsigned int seqcnt, ave_nr_running;
+
+	for_each_online_cpu(i) {
+		struct rq *q = cpu_rq(i);
+
+		/*
+		 * Update average to avoid reading stalled value if there were
+		 * no run-queue changes for a long time. On the other hand if
+		 * the changes are happening right now, just read current value
+		 * directly.
+		 */
+		seqcnt = read_seqcount_begin(&q->ave_seqcnt);
+		ave_nr_running = do_avg_nr_running(q);
+		if (read_seqcount_retry(&q->ave_seqcnt, seqcnt)) {
+			read_seqcount_begin(&q->ave_seqcnt);
+			ave_nr_running = q->ave_nr_running;
+		}
+
+		sum += ave_nr_running;
+	}
+
+	return sum;
+}
+
 unsigned long nr_iowait_cpu(int cpu)
 {
 	struct rq *this = cpu_rq(cpu);
@@ -4268,7 +4338,7 @@ void task_times(struct task_struct *p, cputime_t *ut, cputime_t *st)
 	 */
 	rtime = nsecs_to_cputime(p->se.sum_exec_runtime);
 
-	if (total) {
+	if (total && total == (__force u32) total) {
 		u64 temp = rtime;
 
 		temp *= utime;
@@ -4301,7 +4371,7 @@ void thread_group_times(struct task_struct *p, cputime_t *ut, cputime_t *st)
 	total = cputime_add(cputime.utime, cputime.stime);
 	rtime = nsecs_to_cputime(cputime.sum_exec_runtime);
 
-	if (total) {
+	if (total && total == (__force u32) total) {
 		u64 temp = rtime;
 
 		temp *= cputime.utime;
@@ -7658,6 +7728,7 @@ static int __sdt_alloc(const struct cpumask *cpu_map)
 	return 0;
 }
 
+
 static void __sdt_free(const struct cpumask *cpu_map)
 {
 	struct sched_domain_topology_level *tl;
@@ -7667,16 +7738,26 @@ static void __sdt_free(const struct cpumask *cpu_map)
 		struct sd_data *sdd = &tl->data;
 
 		for_each_cpu(j, cpu_map) {
-			struct sched_domain *sd = *per_cpu_ptr(sdd->sd, j);
-			if (sd && (sd->flags & SD_OVERLAP))
-				free_sched_groups(sd->groups, 0);
-			kfree(*per_cpu_ptr(sdd->sd, j));
-			kfree(*per_cpu_ptr(sdd->sg, j));
-			kfree(*per_cpu_ptr(sdd->sgp, j));
+			struct sched_domain *sd;
+
+			if (sdd->sd) {
+				sd = *per_cpu_ptr(sdd->sd, j);
+				if (sd && (sd->flags & SD_OVERLAP))
+					free_sched_groups(sd->groups, 0);
+				kfree(*per_cpu_ptr(sdd->sd, j));
+			}
+
+			if (sdd->sg)
+				kfree(*per_cpu_ptr(sdd->sg, j));
+			if (sdd->sgp)
+				kfree(*per_cpu_ptr(sdd->sgp, j));
 		}
 		free_percpu(sdd->sd);
+		sdd->sd = NULL;
 		free_percpu(sdd->sg);
+		sdd->sg = NULL;
 		free_percpu(sdd->sgp);
+		sdd->sgp = NULL;
 	}
 }
 
