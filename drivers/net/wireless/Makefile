@@ -63,6 +63,7 @@ obj-$(CONFIG_MWIFIEX)	+= mwifiex/
 ifeq ($(CONFIG_BCM4334),y)
 ifeq ($(CONFIG_BCM4334_CM),m)
 obj-$(CONFIG_BCM4334_CM) += bcmdhd.cm/
+obj-$(CONFIG_BCM4334) += bcmdhd/
 else
 obj-$(CONFIG_BCM4334) += bcmdhd/
 endif
