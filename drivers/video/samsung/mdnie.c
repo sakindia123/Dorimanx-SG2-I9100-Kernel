@@ -19,6 +19,9 @@
 #include <linux/device.h>
 #include <linux/backlight.h>
 #include <linux/platform_device.h>
+#ifdef CONFIG_FB_S5P_MDNIE_CONTROL
+#include <linux/miscdevice.h>
+#endif
 #include <linux/mdnie.h>
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
