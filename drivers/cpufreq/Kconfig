@@ -167,6 +167,12 @@ config CPU_FREQ_DEFAULT_GOV_NIGHTMARE
 	bool "nightmare"
 	select CPU_FREQ_GOV_NIGHTMARE
 
+config CPU_FREQ_DEFAULT_GOV_ZENX
+	bool "ZenX"
+	select CPU_FREQ_GOV_ZENX
+	help
+	  Use the CPUFreq governor 'ZenX' as default.
+
 endchoice
 
 config CPU_FREQ_GOV_PERFORMANCE
@@ -409,6 +415,19 @@ config CPU_FREQ_GOV_ADAPTIVE
 
 config CPU_FREQ_GOV_PEGASUSQ
 	tristate "'pegasusq' cpufreq policy governor"
+
+config CPU_FREQ_GOV_ZENX
+	tristate "'ZenX' cpufreq governor"
+	depends on CPU_FREQ
+	help
+	  'ZenX' - an interactive-based governor
+
+	  This governor provides full CPU hotplugging support
+	  based on average CPU load across all CPUs.
+
+	  For details, take a look at linux/Documentation/cpu-freq.
+
+	  If in doubt, say N
 
 config CPU_FREQ_GOV_LULZACTIVEQ
         tristate "'lulzactiveq' cpufreq governor"

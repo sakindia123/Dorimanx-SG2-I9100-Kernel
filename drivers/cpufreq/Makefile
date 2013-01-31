@@ -22,6 +22,7 @@ obj-$(CONFIG_CPU_FREQ_GOV_ABYSSPLUG)	+= cpufreq_abyssplug.o
 obj-$(CONFIG_CPU_FREQ_GOV_ONDEMANDQ)	+= cpufreq_ondemandq.o
 obj-$(CONFIG_CPU_FREQ_GOV_HYDRXQ)	+= cpufreq_hydrxq.o
 obj-$(CONFIG_CPU_FREQ_GOV_NIGHTMARE)  += cpufreq_nightmare.o
+obj-$(CONFIG_CPU_FREQ_GOV_ZENX)		+= cpufreq_zenx.o
 
 # CPUfreq cross-arch helpers
 obj-$(CONFIG_CPU_FREQ_TABLE)		+= freq_table.o
