@@ -35,6 +35,7 @@
 
 #include <asm/div64.h>
 #include <asm/vfp.h>
+#include <asm/system_info.h>
 
 #include "vfpinstr.h"
 #include "vfp.h"
