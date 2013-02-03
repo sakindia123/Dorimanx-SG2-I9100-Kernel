@@ -827,8 +827,8 @@ static ssize_t store_first_core_freq_limit(struct kobject *a, struct attribute *
 	if (ret != 1)
 		return -EINVAL;
 
-	if (input >= 1974000)	
-		dbs_tuners_ins.first_core_freq_limit = 1974000;
+	if (input >= 1800000)	
+		dbs_tuners_ins.first_core_freq_limit = 1800000;
 	else
 		dbs_tuners_ins.first_core_freq_limit = input;
 
