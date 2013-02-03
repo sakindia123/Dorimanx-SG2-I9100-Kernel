@@ -205,7 +205,6 @@ static int hotplug_freq[4][2] = {
 };
 #endif
 
-
 static unsigned int min_sampling_rate;
 
 static void do_dbs_timer(struct work_struct *work);
@@ -828,8 +827,8 @@ static ssize_t store_first_core_freq_limit(struct kobject *a, struct attribute *
 	if (ret != 1)
 		return -EINVAL;
 
-	if (input > 1400000)	
-		dbs_tuners_ins.first_core_freq_limit = 1400000;
+	if (input >= 1974000)	
+		dbs_tuners_ins.first_core_freq_limit = 1974000;
 	else
 		dbs_tuners_ins.first_core_freq_limit = input;
 
@@ -845,8 +844,8 @@ static ssize_t store_second_core_freq_limit(struct kobject *a, struct attribute 
 	ret = sscanf(buf, "%u", &input);
 	if (ret != 1)
 		return -EINVAL;
-	if (input > 1400000)	
-		dbs_tuners_ins.second_core_freq_limit = 1400000;
+	if (input >= 1974000)	
+		dbs_tuners_ins.second_core_freq_limit = 1974000;
 	else
 		dbs_tuners_ins.second_core_freq_limit = input;
 	return count;
