@@ -140,11 +140,9 @@ static struct dbs_tuners {
 #define TB_UP 1
 #define TB_DOWN 2
 
-/* Table for use with Samsung N7100 */
-static int tb_freqs[22][3]={
-    {1974000,1974000,1902000},
-    {1902000,1974000,1800000},
-    {1800000,1902000,1704000},
+/* Table for use with Samsung GT-I9300 */
+static int tb_freqs[18][3]={
+    {1800000,1800000,1704000},
     {1704000,1800000,1600000},
     {1600000,1704000,1500000},
     {1500000,1600000,1400000},
@@ -161,17 +159,13 @@ static int tb_freqs[22][3]={
     { 400000, 500000, 300000},
     { 300000, 400000, 200000},
     { 200000, 300000, 100000},
-    { 100000, 200000,  50000},
-    {  50000, 100000,  25000},
-    {  25000,  50000,  25000}
+    { 100000, 200000, 100000},
 };
 
-/* Table for use with Samsung N7100 */
-static int tb_freqs_power[22][3]={
-    {1974000,1974000,1902000},
-    {1902000,1974000,1800000},
-    {1800000,1974000,1704000},
-    {1704000,1902000,1600000},
+/* Table for use with Samsung GT-I9300 */
+static int tb_freqs_power[18][3]={
+    {1800000,1800000,1704000},
+    {1704000,1800000,1600000},
     {1600000,1800000,1500000},
     {1500000,1704000,1400000},
     {1400000,1600000,1300000},
@@ -187,16 +181,14 @@ static int tb_freqs_power[22][3]={
     { 400000, 600000, 300000},
     { 300000, 500000, 200000},
     { 200000, 400000, 100000},
-    { 100000, 300000,  50000},
-    {  50000, 200000,  25000},
-    {  25000, 100000,  25000}
+    { 100000, 300000, 100000},
 };
 
 static int tb_get_next_freq(unsigned int curfreq, unsigned int updown, unsigned int load) {
     int i=0;
     if (load < dbs_tuners_ins.boost)
     {
-        for(i = 0; i < 22; i++)
+        for(i = 0; i < 18; i++)
         {
             if(curfreq == tb_freqs[i][TB_FREQ])
                 return tb_freqs[i][updown];
@@ -204,7 +196,7 @@ static int tb_get_next_freq(unsigned int curfreq, unsigned int updown, unsigned 
     }
     else
     {
-        for(i = 0; i < 22; i++)
+        for(i = 0; i < 18; i++)
         {
             if(curfreq == tb_freqs_power[i][TB_FREQ])
                 return tb_freqs_power[i][updown];
@@ -842,11 +834,11 @@ static void __exit cpufreq_gov_dbs_exit(void)
 // abyssplugV2 is based on the modified conservative (original author)
 // Alexander Clouter <alex@digriz.org.uk>) smoove governor from Michael Weingaertner <mialwe@googlemail.com>
 // (source: https://github.com/mialwe/mngb/)
-// Modified to be hotplug-able and optimzed for use with Samsung N7100.
+// Modified to be hotplug-able and optimzed for use with Samsung GT-I9300.
 
 MODULE_DESCRIPTION("'cpufreq_abyssplugV2' - A dynamic cpufreq governor based "
 		"cpufreq_conservative from Alexander Clouter. Optimized for use with Samsung N7100 "
-		"using frequency lookup tables and CPU hotplug - ported/modified for N7100 ");
+		"using frequency lookup tables and CPU hotplug - ported/modified for GT-I9300 ");
 MODULE_LICENSE("GPL");
 
 #ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_ABYSSPLUG
