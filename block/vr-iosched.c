@@ -26,7 +26,6 @@
 #include <linux/init.h>
 #include <linux/compiler.h>
 #include <linux/rbtree.h>
-#include <linux/version.h>
 
 #include <asm/div64.h>
 
@@ -40,8 +39,8 @@ FORWARD,
 BACKWARD,
 };
 
-static const int sync_expire = HZ / 2; /* max time before a sync is submitted. */
-static const int async_expire = 5 * HZ; /* ditto for async, these limits are SOFT! */
+static const int sync_expire = HZ / 4; /* max time before a sync is submitted. */
+static const int async_expire = 2 * HZ; /* ditto for async, these limits are SOFT! */
 static const int fifo_batch = 1;
 static const int rev_penalty = 1; /* penalty for reversing head direction */
 
@@ -300,15 +299,6 @@ vr_move_request(vd, rq);
 return 1;
 }
 
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,38)
-static int
-vr_queue_empty(struct request_queue *q)
-{
-struct vr_data *vd = vr_get_data(q);
-return RB_EMPTY_ROOT(&vd->sort_list);
-}
-#endif
-
 static void
 vr_exit_queue(struct elevator_queue *e)
 {
@@ -411,9 +401,6 @@ static struct elevator_type iosched_vr = {
 .elevator_merge_req_fn = vr_merged_requests,
 .elevator_dispatch_fn = vr_dispatch_requests,
 .elevator_add_req_fn = vr_add_request,
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,38)
-.elevator_queue_empty_fn = vr_queue_empty,
-#endif
 .elevator_former_req_fn = elv_rb_former_request,
 .elevator_latter_req_fn = elv_rb_latter_request,
 .elevator_init_fn = vr_init_queue,

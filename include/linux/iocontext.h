@@ -3,28 +3,33 @@
 
 #include <linux/radix-tree.h>
 #include <linux/rcupdate.h>
+#include <linux/workqueue.h>
 
-struct cfq_queue;
-struct cfq_io_context {
-	void *key;
+enum {
+	ICQ_IOPRIO_CHANGED,
+	ICQ_CGROUP_CHANGED,
+};
 
-	struct cfq_queue *cfqq[2];
+struct io_cq {
+	struct request_queue    *q;
+	struct io_context       *ioc;
 
-	struct io_context *ioc;
+	/*
+	 * q_node and ioc_node link io_cq through icq_list of q and ioc
+	 * respectively.  Both fields are unused once ioc_exit_icq() is
+	 * called and shared with __rcu_icq_cache and __rcu_head which are
+	 * used for RCU free of io_cq.
+	 */
+	union {
+		struct list_head        q_node;
+		struct kmem_cache       *__rcu_icq_cache;
+	};
+	union {
+		struct hlist_node       ioc_node;
+		struct rcu_head         __rcu_head;
+	};
 
-	unsigned long last_end_request;
-
-	unsigned long ttime_total;
-	unsigned long ttime_samples;
-	unsigned long ttime_mean;
-
-	struct list_head queue_list;
-	struct hlist_node cic_list;
-
-	void (*dtor)(struct io_context *); /* destructor */
-	void (*exit)(struct io_context *); /* called on task exit */
-
-	struct rcu_head rcu_head;
+	unsigned long           changed;
 };
 
 /*
@@ -39,11 +44,6 @@ struct io_context {
 	spinlock_t lock;
 
 	unsigned short ioprio;
-	unsigned short ioprio_changed;
-
-#if defined(CONFIG_BLK_CGROUP) || defined(CONFIG_BLK_CGROUP_MODULE)
-	unsigned short cgroup_changed;
-#endif
 
 	/*
 	 * For request batching
@@ -51,9 +51,11 @@ struct io_context {
 	int nr_batch_requests;     /* Number of requests left in the batch */
 	unsigned long last_waited; /* Time last woken after wait for request */
 
-	struct radix_tree_root radix_root;
-	struct hlist_head cic_list;
-	void __rcu *ioc_data;
+	struct radix_tree_root	icq_tree;
+	struct io_cq __rcu	*icq_hint;
+	struct hlist_head	icq_list;
+
+	struct work_struct release_work;
 };
 
 static inline struct io_context *ioc_task_link(struct io_context *ioc)
@@ -72,20 +74,17 @@ static inline struct io_context *ioc_task_link(struct io_context *ioc)
 
 struct task_struct;
 #ifdef CONFIG_BLOCK
-int put_io_context(struct io_context *ioc);
+void put_io_context(struct io_context *ioc, struct request_queue *locked_q);
 void exit_io_context(struct task_struct *task);
-struct io_context *get_io_context(gfp_t gfp_flags, int node);
-struct io_context *alloc_io_context(gfp_t gfp_flags, int node);
+struct io_context *get_task_io_context(struct task_struct *task,
+				       gfp_t gfp_flags, int node);
+void ioc_ioprio_changed(struct io_context *ioc, int ioprio);
+void ioc_cgroup_changed(struct io_context *ioc);
 #else
-static inline void exit_io_context(struct task_struct *task)
-{
-}
-
 struct io_context;
-static inline int put_io_context(struct io_context *ioc)
-{
-	return 1;
-}
+static inline void put_io_context(struct io_context *ioc,
+				  struct request_queue *locked_q) { }
+static inline void exit_io_context(struct task_struct *task) { }
 #endif
 
 #endif
