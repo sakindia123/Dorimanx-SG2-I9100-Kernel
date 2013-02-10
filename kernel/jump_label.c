@@ -134,7 +134,7 @@ static void __jump_label_update(struct jump_label_key *key,
 	}
 }
 
-static __init int jump_label_init(void)
+void __init int jump_label_init(void)
 {
 	struct jump_entry *iter_start = __start___jump_table;
 	struct jump_entry *iter_stop = __stop___jump_table;
@@ -161,9 +161,7 @@ static __init int jump_label_init(void)
 	}
 	jump_label_unlock();
 
-	return 0;
 }
-early_initcall(jump_label_init);
 
 #ifdef CONFIG_MODULES
 
