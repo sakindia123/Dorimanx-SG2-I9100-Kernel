@@ -31,6 +31,7 @@
 
 #define TB_BOOST 1
 
+// cpu load trigger
 #define DEF_BOOST (75)
 
 /*
@@ -748,14 +749,8 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 			 * conservative does not implement micro like ondemand
 			 * governor, thus we are bound to jiffes/HZ
 			 */
-			min_sampling_rate =
-				MIN_SAMPLING_RATE_RATIO * jiffies_to_usecs(3);
-			/* Bring kernel and HW constraints together */
-			min_sampling_rate = max(min_sampling_rate,
-					MIN_LATENCY_MULTIPLIER * latency);
-			dbs_tuners_ins.sampling_rate =
-				max(min_sampling_rate,
-				    latency * LATENCY_MULTIPLIER);
+			min_sampling_rate = 10000;
+			dbs_tuners_ins.sampling_rate = min_sampling_rate;
 			sampling_rate_awake = dbs_tuners_ins.sampling_rate;
 			up_threshold_awake = dbs_tuners_ins.up_threshold;
 			down_threshold_awake = dbs_tuners_ins.down_threshold;
@@ -837,8 +832,8 @@ static void __exit cpufreq_gov_dbs_exit(void)
 // Modified to be hotplug-able and optimzed for use with Samsung GT-I9300.
 
 MODULE_DESCRIPTION("'cpufreq_abyssplugV2' - A dynamic cpufreq governor based "
-		"cpufreq_conservative from Alexander Clouter. Optimized for use with Samsung N7100 "
-		"using frequency lookup tables and CPU hotplug - ported/modified for GT-I9300 ");
+"cpufreq_conservative from Alexander Clouter. Optimized for use with Samsung GT-I9300 "
+"using frequency lookup tables and CPU hotplug - ported/modified for GT-I9300 by halaszk");
 MODULE_LICENSE("GPL");
 
 #ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_ABYSSPLUG
