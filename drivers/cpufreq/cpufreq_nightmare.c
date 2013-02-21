@@ -187,9 +187,15 @@ static unsigned int get_nr_run_avg(void)
 #define TRANS_LOAD_H0			20
 #define TRANS_LOAD_L1			20
 #define TRANS_LOAD_H1			100
+#define TRANS_LOAD_L2			30
+#define TRANS_LOAD_L3			40
+#define TRANS_LOAD_H2			100
 #define TRANS_LOAD_H0_SCROFF		20
 #define TRANS_LOAD_L1_SCROFF		20
 #define TRANS_LOAD_H1_SCROFF		100
+#define TRANS_LOAD_L2_SCROFF		30
+#define TRANS_LOAD_H2_SCROFF		100
+#define TRANS_LOAD_L3_SCROFF		40
 #define TRANS_RQ			2
 #define TRANS_LOAD_RQ			20
 #define CPU_OFF				0
@@ -298,10 +304,13 @@ static struct nightmare_tuners {
 	unsigned int trans_load_h0_scroff;
 	unsigned int trans_load_l1_scroff;
 	unsigned int trans_load_h1_scroff;
-#if (NR_CPUS > 2)
+#ifndef CONFIG_CPU_EXYNOS4210
 	unsigned int trans_load_l2;
 	unsigned int trans_load_h2;
 	unsigned int trans_load_l3;
+	unsigned int trans_load_l2_scroff;
+	unsigned int trans_load_h2_scroff;
+	unsigned int trans_load_l3_scroff;
 #endif
 	unsigned int trans_latency_one_core;
 	unsigned int trans_latency_two_cores;
@@ -468,9 +477,7 @@ struct cpu_usage_history *hotplug_histories;
 static inline cputime64_t get_cpu_idle_time_jiffy(unsigned int cpu,
 							cputime64_t *wall)
 {
-	cputime64_t idle_time;
-	cputime64_t cur_wall_time;
-	cputime64_t busy_time;
+	cputime64_t idle_time, cur_wall_time, busy_time = 0;
 
 	cur_wall_time = jiffies64_to_cputime64(get_jiffies_64());
 
@@ -555,7 +562,7 @@ show_one(trans_load_h1, trans_load_h1);
 show_one(trans_load_h0_scroff, trans_load_h0_scroff);
 show_one(trans_load_l1_scroff, trans_load_l1_scroff);
 show_one(trans_load_h1_scroff, trans_load_h1_scroff);
-#if (NR_CPUS > 2)
+#ifndef CONFIG_CPU_EXYNOS4210
 show_one(trans_load_l2, trans_load_l2);
 show_one(trans_load_h2, trans_load_h2);
 show_one(trans_load_l3, trans_load_l3);
@@ -997,7 +1004,7 @@ static ssize_t store_trans_load_h1_scroff(struct kobject *a, struct attribute *b
 	return count;
 }
 
-#if (NR_CPUS > 2)
+#ifndef CONFIG_CPU_EXYNOS4210
 	/* trans_load_l2 */
 	static ssize_t store_trans_load_l2(struct kobject *a, struct attribute *b,
 					   const char *buf, size_t count)
@@ -1101,7 +1108,7 @@ define_one_global_rw(trans_load_h1);
 define_one_global_rw(trans_load_h0_scroff);
 define_one_global_rw(trans_load_l1_scroff);
 define_one_global_rw(trans_load_h1_scroff);
-#if (NR_CPUS > 2)
+#ifndef CONFIG_CPU_EXYNOS4210
 define_one_global_rw(trans_load_l2);
 define_one_global_rw(trans_load_h2);
 define_one_global_rw(trans_load_l3);
@@ -1142,7 +1149,7 @@ static struct attribute *dbs_attributes[] = {
 	&trans_load_h0_scroff.attr,
 	&trans_load_l1_scroff.attr,
 	&trans_load_h1_scroff.attr,
-#if (NR_CPUS > 2)
+#ifndef CONFIG_CPU_EXYNOS4210
 	&trans_load_l2.attr,
 	&trans_load_h2.attr,
 	&trans_load_l3.attr,
@@ -1180,7 +1187,7 @@ standalone_hotplug(struct cpufreq_nightmare_cpuinfo *this_nightmare_cpuinfo)
 	unsigned int threshold[CPULOAD_TABLE][2] = {
 		{0, nightmare_tuners_ins.trans_load_h0},
 		{nightmare_tuners_ins.trans_load_l1, nightmare_tuners_ins.trans_load_h1},
-#if (NR_CPUS > 2)
+#ifndef CONFIG_CPU_EXYNOS4210
 		{nightmare_tuners_ins.trans_load_l2, nightmare_tuners_ins.trans_load_h2},
 		{nightmare_tuners_ins.trans_load_l3, 100},
 #endif
@@ -1190,7 +1197,7 @@ standalone_hotplug(struct cpufreq_nightmare_cpuinfo *this_nightmare_cpuinfo)
 	unsigned int threshold_scroff[CPULOAD_TABLE][2] = {
 		{0, nightmare_tuners_ins.trans_load_h0_scroff},
 		{nightmare_tuners_ins.trans_load_l1_scroff, nightmare_tuners_ins.trans_load_h1_scroff},
-#if (NR_CPUS > 2)
+#ifndef CONFIG_CPU_EXYNOS4210
 		{nightmare_tuners_ins.trans_load_l2_scroff, nightmare_tuners_ins.trans_load_h2_scroff},
 		{nightmare_tuners_ins.trans_load_l3_scroff, 100},
 #endif
@@ -1512,8 +1519,8 @@ static void nightmare_check_frequency(struct cpufreq_nightmare_cpuinfo *this_nig
 			}			
 
 		#ifdef CONFIG_HAS_EARLYSUSPEND
-		if (screen_off && freq_up > policy->max_suspend)
-		freq_up = policy->max_suspend;
+		if (screen_off && freq_up > 800000)
+		freq_up = 800000;
 		#endif
 
 			if (freq_up != policy->cur && freq_up <= policy->max) {
@@ -1702,8 +1709,8 @@ static void nightmare_suspend(int suspend)
 					policy->cpuinfo.transition_latency = trans_latency_two_cores;
 
 				// let's give it a little breathing room
-				if (policy->max_suspend <= policy->max && policy->max_suspend >= policy->min)
-					__cpufreq_driver_target(policy,policy->max_suspend,CPUFREQ_RELATION_H);
+				if (800000 <= policy->max && 800000 >= policy->min)
+					__cpufreq_driver_target(policy,800000,CPUFREQ_RELATION_H);
 
 				cpufreq_cpu_put(policy);
 
