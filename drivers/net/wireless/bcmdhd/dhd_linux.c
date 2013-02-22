@@ -3956,8 +3956,10 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	dhd->pktfilter[1] = NULL;
 	dhd->pktfilter[2] = NULL;
 	dhd->pktfilter[3] = NULL;
+	/* This filter actually permits all multicast. Disable */
 	/* Add filter to pass multicastDNS packet and NOT filter out as Broadcast */
 	dhd->pktfilter[4] = "104 0 0 0 0xFFFFFFFFFFFF 0x01005E0000FB";
+	dhd->pktfilter[4] = NULL;
 
 #ifdef CUSTOMER_HW4
 #ifdef GAN_LITE_NAT_KEEPALIVE_FILTER
