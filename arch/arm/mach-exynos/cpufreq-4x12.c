@@ -26,7 +26,7 @@
 #include <plat/clock.h>
 #include <plat/cpu.h>
 
-#define CPUFREQ_LEVEL_END	(L17 + 1)
+#define CPUFREQ_LEVEL_END	(L19 + 1)
 
 #undef PRINT_DIV_VAL
 
@@ -67,6 +67,8 @@ static struct cpufreq_frequency_table exynos4x12_freq_table[] = {
 	{L15, 300*1000},
 	{L16, 200*1000},
 	{L17, 100*1000},
+	{L18, 50*1000},
+	{L19, 25*1000},
 	{0, CPUFREQ_TABLE_END},
 };
 
@@ -184,7 +186,12 @@ static unsigned int clkdiv_cpu0_4412[CPUFREQ_LEVEL_END][8] = {
 	
 	/* ARM: 100MHz */
 	{ 0, 1, 3, 0, 1, 1, 1, 0 },
-};
+
+	/* ARM L18: 50MHz */
+	{ 0, 1, 3, 0, 1, 1, 1, 0 },
+
+	/* ARM L19: 25MHz */
+	{ 0, 1, 3, 0, 1, 1, 1, 0 },};
 
 static unsigned int clkdiv_cpu1_4212[CPUFREQ_LEVEL_END][2] = {
 	/* Clock divider value for following
@@ -292,9 +299,16 @@ static unsigned int clkdiv_cpu1_4412[CPUFREQ_LEVEL_END][3] = {
 	/* ARM L14: 200MHz */
 	{ 3, 0, 0 },
 	
-		/* 100MHz */
+	/* 100MHz */
+	{ 3, 0, 0 },
+
+	/* ARM L18: 50MHz */
+	{ 3, 0, 0 },
+
+	/* ARM L19: 25MHz */
 	{ 3, 0, 0 },
 };
+
 
 static unsigned int exynos4x12_apll_pms_table[CPUFREQ_LEVEL_END] = {
 	/* APLL FOUT L-2: 1800MHz */
@@ -351,6 +365,11 @@ static unsigned int exynos4x12_apll_pms_table[CPUFREQ_LEVEL_END] = {
 	/* APLL FOUT 100MHz */
 	((100<<16)|(3<<8)|(0x3)),
 
+	/* APLL FOUT L18: 50MHz */
+	((100<<16)|(6<<8)|(0x3)),
+
+	/* APLL FOUT L21: 25MHz */
+	((50<<16)|(6<<8)|(0x3)),
 };
 
 /*
@@ -403,6 +422,8 @@ static const unsigned int asv_voltage_step_12_5[CPUFREQ_LEVEL_END][12] = {
 	{  950000,  937500,  925000,  900000,  925000,  900000,	 900000,  900000,  900000,  887500,  875000,  862500 },
 	{  925000,  912500,  900000,  900000,  900000,  900000,	 900000,  900000,  887500,  875000,  875000,  862500 },
 	{  925000,  912500,  900000,  900000,  900000,  900000,   900000,  900000,  887500,  875000,  875000,  862500 }, /* L17 100MHz */
+        {  925000,  912500,  900000,  900000,  900000,  900000,   900000,  900000,  887500,  875000,  875000,  862500 }, /* L18 50MHz */
+        {  925000,  912500,  900000,  900000,  900000,  900000,   900000,  900000,  887500,  875000,  875000,  862500 }, /* L19 25MHz */
 };
 #else
 /* ASV table for 12.5mV step */
@@ -426,6 +447,8 @@ static const unsigned int asv_voltage_step_12_5[CPUFREQ_LEVEL_END][12] = {
 	{  950000,  937500,  925000,  900000,  925000,  900000,	 900000,  900000,  900000,  887500,  875000,  862500 },
 	{  925000,  912500,  900000,  900000,  900000,  900000,	 900000,  900000,  887500,  875000,  875000,  862500 },
 	{  925000,  912500,  900000,  900000,  900000,  900000,   900000,  900000,  887500,  875000,  875000,  862500 }, /* L17 100MHz */
+        {  925000,  912500,  900000,  900000,  900000,  900000,   900000,  900000,  887500,  875000,  875000,  862500 }, /* L18 50MHz */
+        {  925000,  912500,  900000,  900000,  900000,  900000,   900000,  900000,  887500,  875000,  875000,  862500 }, /* L19 25MHz */
 };
 #endif
 /* 20120927 DVFS table for pega prime */
