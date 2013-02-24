@@ -198,7 +198,7 @@ static void oled_detection_work(struct work_struct *work)
 
 	int oled_det_level = gpio_get_value(GPIO_OLED_DET);
 
-	dev_info(&lcd->ld->dev, "%s, %d, %d\n", __func__, lcd->oled_detection_count, oled_det_level);
+	//dev_info(&lcd->ld->dev, "%s, %d, %d\n", __func__, lcd->oled_detection_count, oled_det_level);
 
 	if (!oled_det_level) {
 		if (lcd->oled_detection_count < 10) {

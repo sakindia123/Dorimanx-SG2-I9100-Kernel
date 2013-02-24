@@ -129,7 +129,7 @@ static void err_fg_detection_work(struct work_struct *work)
 
 	int err_fg_level = gpio_get_value(GPIO_ERR_FG);
 
-	dev_info(&lcd->ld->dev, "%s, %d, %d\n", __func__, lcd->err_fg_detection_count, err_fg_level);
+	//dev_info(&lcd->ld->dev, "%s, %d, %d\n", __func__, lcd->err_fg_detection_count, err_fg_level);
 
 	if (!err_fg_level) {
 		if (lcd->err_fg_detection_count < 10) {
