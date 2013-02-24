@@ -242,8 +242,6 @@ static int mn_freqs[20][3]={
     { 300000, 400000, 200000},
     { 200000, 300000, 100000},
     { 100000, 200000, 100000}
-    { 50000, 100000, 50000},
-    { 25000, 50000, 25000}
 };
 
 /* Table modified for use with Samsung I9300 by ZaneZam November 2012 */
@@ -266,15 +264,13 @@ static int mn_freqs_power[20][3]={
     { 300000, 500000, 200000},
     { 200000, 400000, 100000},
     { 100000, 200000, 100000},
-    { 50000, 100000, 50000},
-    { 25000, 50000, 25000}
 };
 
 static int mn_get_next_freq(unsigned int curfreq, unsigned int updown, unsigned int load) {
     int i=0;
     if (load < dbs_tuners_ins.smooth_up)
     {
-        for(i = 0; i < 20; i++)
+        for(i = 0; i < 18; i++)
         {
             if(curfreq == mn_freqs[i][MN_FREQ])
                 return mn_freqs[i][updown]; // updown 1|2
@@ -282,7 +278,7 @@ static int mn_get_next_freq(unsigned int curfreq, unsigned int updown, unsigned 
     }
     else
     {
-        for(i = 0; i < 20; i++)
+        for(i = 0; i < 18; i++)
         {
             if(curfreq == mn_freqs_power[i][MN_FREQ])
                 return mn_freqs_power[i][updown]; // updown 1|2
