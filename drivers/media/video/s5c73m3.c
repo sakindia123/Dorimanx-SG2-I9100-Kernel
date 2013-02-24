@@ -2459,13 +2459,16 @@ static int s5c73m3_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	struct s5c73m3_state *state = to_state(sd);
 	int err = 0;
 
-	printk(KERN_INFO "id %d, value %d\n",
+	printk(KERN_INFO "s5c73m3_s_ctrl: id %d, value %d\n",
 		ctrl->id - V4L2_CID_PRIVATE_BASE, ctrl->value);
 
 	if (unlikely(state->isp.bad_fw && ctrl->id != V4L2_CID_CAM_UPDATE_FW)) {
 		cam_err("\"Unknown\" state, please update F/W");
 		return -ENOSYS;
 	}
+
+	printk(KERN_INFO "s5c73m3_g_ctrl: id %d, value %d\n",
+		ctrl->id - V4L2_CID_PRIVATE_BASE, ctrl->value);
 
 	switch (ctrl->id) {
 	case V4L2_CID_CAMERA_FRAME_RATE:
