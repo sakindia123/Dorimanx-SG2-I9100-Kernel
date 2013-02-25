@@ -347,6 +347,19 @@ CHECK		= sparse
 
 CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ \
 		  -Wbitwise -Wno-return-void $(CF)
+XX_A9 	    = 	-marm -march=armv7-a \
+		-mcpu=cortex-a9 -mfpu=vfp3 -mfloat-abi=softfp
+XX_GRAPHITE = 	-fgraphite-identity -floop-block -ftree-loop-linear \
+		-floop-strip-mine -ftree-loop-distribution
+XX_MODULO   = 	-fmodulo-sched -fmodulo-sched-allow-regmoves
+
+#-fsched-spec-load \
+#-floop-interchange -floop-block \
+#-ffast-math -ftree-vectorize \
+#-funswitch-loops -fpredictive-commoning -fgcse-after-reload \ 
+#-fipa-cp-clone -pipe \
+#-Wno-array-bounds
+
 CFLAGS_MODULE   =
 AFLAGS_MODULE   =
 LDFLAGS_MODULE  =
@@ -364,6 +377,10 @@ LINUXINCLUDE    := -I$(srctree)/arch/$(hdr-arch)/include \
 
 KBUILD_CPPFLAGS := -D__KERNEL__
 
+O3_02 := -fpredictive-commoning -fgcse-after-reload -fipa-cp-clone \
+	-funswitch-loops -ftree-vectorize -ftree-loop-distribute-patterns
+Ofast_O3 := -ffast-math
+
 KBUILD_CFLAGS := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -Werror=strict-prototypes \
 		-fno-strict-aliasing -fno-common \
 		-Werror-implicit-function-declaration \
@@ -372,10 +389,11 @@ KBUILD_CFLAGS := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -Werror=strict
 		-pipe \
 		-ffast-math \
 		-mfpu=neon \
-		-mfloat-abi=softfp \
 		-march=armv7-a \
 		-mtune=cortex-a9 \
-		-mvectorize-with-neon-quad
+		-mvectorize-with-neon-quad \
+		 $(XX_A9) $(XX_GRAPHITE) $(XX_MODULO) $(O3_O2) $(Ofast_O3)
+
 KBUILD_AFLAGS_KERNEL :=
 KBUILD_CFLAGS_KERNEL :=
 KBUILD_AFLAGS   := -D__ASSEMBLY__
