@@ -559,6 +559,7 @@ static int do_sched_rt_period_timer(struct rt_bandwidth *rt_b, int overrun)
 	if (!rt_bandwidth_enabled() || rt_b->rt_runtime == RUNTIME_INF)
 		return 1;
 
+	span = sched_rt_period_mask();
 #ifdef CONFIG_RT_GROUP_SCHED
 	/*
 	 * FIXME: isolated CPUs should really leave the root task group,
@@ -572,8 +573,6 @@ static int do_sched_rt_period_timer(struct rt_bandwidth *rt_b, int overrun)
 	if (rt_b == &root_task_group.rt_bandwidth)
 		span = cpu_online_mask;
 #endif
-
-	span = sched_rt_period_mask();
 	for_each_cpu(i, span) {
 		int enqueue = 0;
 		struct rt_rq *rt_rq = sched_rt_period_rt_rq(rt_b, i);
