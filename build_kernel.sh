@@ -12,7 +12,7 @@ export KERNEL_CONFIG="halaszk_defconfig"
 
 # build script
 export USER=`whoami`
-# gcc 4.7.3 (Linaro 13.01)
+# gcc 4.7.3 (Linaro 13.02)
 export CROSS_COMPILE=${KERNELDIR}/android-toolchain/bin/arm-eabi-
 #export CROSS_COMPILE=$PARENT_DIR/android_prebuilt/linux-x86/toolchain/arm-eabi-4.4.3/bin/arm-eabi-
 #export CROSS_COMPILE=/home/halaszk/android_build/SGS2/kernel/Dorimanx-SG2-I9100-Kernel/linaro-12-android-toolchain/bin/arm-eabi-
