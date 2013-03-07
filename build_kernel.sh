@@ -138,6 +138,5 @@ rm ${KERNELDIR}/boot.img
 rm ${KERNELDIR}/READY/boot/boot.img
 rm ${KERNELDIR}/READY/.config
 mv ${KERNELDIR}/READY/Kernel_* ${KERNELDIR}/SGSIII/
-i
 ncftpput -f /home/halaszk/login.cfg -V -R / ${KERNELDIR}/SGSIII/
 rm ${KERNELDIR}/SGSIII/Kernel_*
