@@ -44,6 +44,7 @@
 #include <linux/mm_inline.h>
 #include <linux/mutex.h>
 #include <linux/delay.h>
+#include <linux/ktime.h>
 
 static uint32_t lowmem_debug_level = 1;
 static int lowmem_adj[] = {
@@ -92,7 +93,7 @@ enum pageout_io {
 
 #endif /* CONFIG_ZRAM_FOR_ANDROID */
 
-static unsigned long lowmem_deathpending_timeout;
+static ktime_t lowmem_deathpending_timeout;
 
 #define lowmem_print(level, x...)			\
 	do {						\
@@ -170,7 +171,8 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 			continue;
 
 		if (test_tsk_thread_flag(p, TIF_MEMDIE) &&
-		    time_before_eq(jiffies, lowmem_deathpending_timeout)) {
+		(ktime_us_delta(ktime_get(),
+			lowmem_deathpending_timeout) < 0) {
 			task_unlock(p);
 			rcu_read_unlock();
 			/* give the system time to free up the memory */
@@ -204,7 +206,8 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 		lowmem_print(1, "send sigkill to %d (%s), adj %d, size %d\n",
 			     selected->pid, selected->comm,
 			     selected_oom_score_adj, selected_tasksize);
-		lowmem_deathpending_timeout = jiffies + 100;
+		lowmem_deathpending_timeout = ktime_add_ns(ktime_get(),
+				 NSEC_PER_SEC/2);
 		send_sig(SIGKILL, selected, 0);
 		set_tsk_thread_flag(selected, TIF_MEMDIE);
 		rem -= selected_tasksize;
