@@ -171,8 +171,7 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 			continue;
 
 		if (test_tsk_thread_flag(p, TIF_MEMDIE) &&
-		(ktime_us_delta(ktime_get(),
-			lowmem_deathpending_timeout) < 0) {
+		ktime_us_delta(ktime_get(),lowmem_deathpending_timeout) < 0) {
 			task_unlock(p);
 			rcu_read_unlock();
 			/* give the system time to free up the memory */
