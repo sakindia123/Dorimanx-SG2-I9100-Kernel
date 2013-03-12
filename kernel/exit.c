@@ -700,10 +700,10 @@ static void exit_mm(struct task_struct * tsk)
 		atomic_dec(&mm->oom_disable_count);
 	task_unlock(tsk);
 	mm_update_next_owner(mm);
-	mm_released = mmput(mm);}
+	mm_released = mmput(mm);
 		if (mm_released)
 		set_tsk_thread_flag(tsk, TIF_MM_RELEASED);
-
+}
 /*
  * When we die, we re-parent all our children.
  * Try to give them to another thread in our thread
