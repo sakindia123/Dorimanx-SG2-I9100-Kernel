@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_cdc.c 357848 2012-09-20 05:38:41Z $
+ * $Id: dhd_cdc.c 355825 2012-09-10 03:22:40Z $
  *
  * BDC is like CDC, except it includes a header for data packets to convey
  * packet priority over the bus, and flags (e.g. to indicate checksum status
@@ -892,7 +892,7 @@ _dhd_wlfc_pullheader(athost_wl_status_info_t* ctx, void* pktbuf)
 
 	if (PKTLEN(ctx->osh, pktbuf) < (h->dataOffset << 2)) {
 		WLFC_DBGMESG(("%s: rx data too short (%d < %d)\n", __FUNCTION__,
-			PKTLEN(ctx->osh, pktbuf), (h->dataOffset << 2)));
+		           PKTLEN(ctx->osh, pktbuf), (h->dataOffset << 2)));
 		return BCME_ERROR;
 	}
 	/* pull wl-header */
@@ -958,7 +958,7 @@ _dhd_wlfc_rollback_packet_toq(athost_wl_status_info_t* ctx,
 		else {
 			/* remove header first */
 			rc = _dhd_wlfc_pullheader(ctx, p);
-			if (rc != BCME_OK)          {
+			if (rc != BCME_OK) {
 				WLFC_DBGMESG(("Error: %s():%d\n", __FUNCTION__, __LINE__));
 				/* free the hanger slot */
 				dhd_wlfc_hanger_poppkt(ctx->hanger, hslot, &pktout, 1);
@@ -2469,6 +2469,8 @@ dhd_wlfc_cleanup(dhd_pub_t *dhd)
 					if (h->items[i].state == WLFC_HANGER_ITEM_STATE_INUSE) {
 						PKTFREE(wlfc->osh, h->items[i].pkt, TRUE);
 						h->items[i].state = WLFC_HANGER_ITEM_STATE_FREE;
+						h->items[i].pkt = NULL;
+						h->items[i].identifier = 0;
 					} else if (h->items[i].state ==
 						WLFC_HANGER_ITEM_STATE_INUSE_SUPPRESSED) {
 						/* These are already freed from the psq */
@@ -2483,7 +2485,11 @@ dhd_wlfc_cleanup(dhd_pub_t *dhd)
 	/* flush remained pkt in hanger queue, not in bus->txq */
 	for (i = 0; i < h->max_items; i++) {
 		if (h->items[i].state == WLFC_HANGER_ITEM_STATE_INUSE) {
-			PKTFREE(wlfc->osh, h->items[i].pkt, TRUE);
+			if (!dhd->hang_was_sent) {
+				PKTFREE(wlfc->osh, h->items[i].pkt, TRUE);
+			} else {
+				printk("%s: Skip freeing skb %p\n", __func__, h->items[i].pkt);
+			}
 			h->items[i].state = WLFC_HANGER_ITEM_STATE_FREE;
 			h->items[i].pkt = NULL;
 			h->items[i].identifier = 0;
