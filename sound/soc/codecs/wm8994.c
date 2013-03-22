@@ -40,7 +40,13 @@
 #include "wm8994.h"
 #include "wm_hubs.h"
 
+#ifdef CONFIG_SND_BOEFFLA
 #include "boeffla_sound.h"
+#endif
+
+#ifdef CONFIG_SND_WOLFSON_SOUND_CONTROL
+#include "sound_control.h"
+#endif
 
 #define WM1811_JACKDET_MODE_NONE  0x0000
 #define WM1811_JACKDET_MODE_JACK  0x0100
@@ -209,7 +215,13 @@ static int wm8994_write(struct snd_soc_codec *codec, unsigned int reg,
 #if defined(CONFIG_SND_VOODOO) && !defined(CONFIG_SND_VOODOO_MODULE)
 	value = voodoo_hook_wm8994_write(codec, reg, value);
 #endif
+#ifdef CONFIG_SND_BOEFFLA
 	value = Boeffla_sound_hook_wm8994_write(reg, value);
+#endif
+
+#ifdef CONFIG_SND_WOLFSON_SOUND_CONTROL
+	value = sound_control_hook_wm8994_write(reg, value);
+#endif
 
 	if (!wm8994_volatile(codec, reg)) {
 		ret = snd_soc_cache_write(codec, reg, value);
@@ -4234,7 +4246,11 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 #if defined(CONFIG_SND_VOODOO) && !defined(CONFIG_SND_VOODOO_MODULE)
 	voodoo_hook_wm8994_pcm_probe(codec);
 #endif
+#ifdef CONFIG_SND_BOEFFLA
 	Boeffla_sound_hook_wm8994_pcm_probe(codec);
+#ifdef CONFIG_SND_WOLFSON_SOUND_CONTROL
+	sound_control_hook_wm8994_pcm_probe(codec);
+#endif
 
 	return 0;
 
