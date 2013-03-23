@@ -4248,6 +4248,7 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 #endif
 #ifdef CONFIG_SND_BOEFFLA
 	Boeffla_sound_hook_wm8994_pcm_probe(codec);
+#endif
 #ifdef CONFIG_SND_WOLFSON_SOUND_CONTROL
 	sound_control_hook_wm8994_pcm_probe(codec);
 #endif
