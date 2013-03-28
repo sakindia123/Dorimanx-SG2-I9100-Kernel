@@ -16,7 +16,6 @@
  * Created by Alucard_24@xda
  *
  *
- * Ported Galaxy S3 GT-I9300 by 'halaszk'
  */
 
 #include <linux/kernel.h>
@@ -129,20 +128,6 @@ static void rq_work_fn(struct work_struct *work)
 	spin_unlock_irqrestore(&rq_data->lock, flags);
 }
 
-static unsigned int get_nr_run_avg(void)
-{
-	unsigned int nr_run_avg;
-	unsigned long flags = 0;
-
-	spin_lock_irqsave(&rq_data->lock, flags);
-	nr_run_avg = rq_data->nr_run_avg;
-	rq_data->nr_run_avg = 0;
-	spin_unlock_irqrestore(&rq_data->lock, flags);
-
-	return nr_run_avg;
-}
-
-
 /*
  * dbs is used in this file as a shortform for demandbased switching
  * It helps to keep variable names smaller, simpler
@@ -154,13 +139,13 @@ static unsigned int get_nr_run_avg(void)
 #define MAX_SAMPLING_DOWN_FACTOR	(100000)
 #define DEF_FREQ_STEP_DEC		(5)
 
-#define DEF_SAMPLING_RATE		(60000)
+#define DEF_SAMPLING_RATE		(100000)
 #define MIN_SAMPLING_RATE		(10000)
 #define MAX_HOTPLUG_RATE		(40u)
 
 #define DEF_MAX_CPU_LOCK		(0)
 #define DEF_MIN_CPU_LOCK		(0)
-#define DEF_UP_NR_CPUS			(1)
+#define DEF_UP_NR_CPUS			(4)
 #define DEF_FREQ_STEP			(30)
 
 #define DEF_START_DELAY			(0)
@@ -171,7 +156,7 @@ static unsigned int get_nr_run_avg(void)
 #define MIN_FREQ_FOR_CALC_INCR		(50000)
 #define MAX_FREQ_FOR_CALC_DECR		(400000)
 #define DEF_FREQ_FOR_CALC_DECR		(200000)
-#define MIN_FREQ_FOR_CALC_DECR		(125000)
+#define MIN_FREQ_FOR_CALC_DECR		(200000)
 #define HOTPLUG_DOWN_INDEX		(0)
 #define HOTPLUG_UP_INDEX		(1)
 /* CPU freq will be increased if measured load > inc_cpu_load;*/
@@ -183,19 +168,16 @@ static unsigned int get_nr_run_avg(void)
 
 /* HOTPLUG FROM STANDALONE */
 #define CPU1_ON_FREQ			800000
-#define CPU1_OFF_FREQ			800000
+#define CPU1_OFF_FREQ			400000
 #define TRANS_LOAD_H0			20
 #define TRANS_LOAD_L1			20
 #define TRANS_LOAD_H1			100
-#define TRANS_LOAD_L2			30
-#define TRANS_LOAD_L3			40
+#define TRANS_LOAD_L2			5
 #define TRANS_LOAD_H2			100
+#define TRANS_LOAD_L3			5
 #define TRANS_LOAD_H0_SCROFF		20
 #define TRANS_LOAD_L1_SCROFF		20
 #define TRANS_LOAD_H1_SCROFF		100
-#define TRANS_LOAD_L2_SCROFF		30
-#define TRANS_LOAD_H2_SCROFF		100
-#define TRANS_LOAD_L3_SCROFF		40
 #define TRANS_RQ			2
 #define TRANS_LOAD_RQ			20
 #define CPU_OFF				0
@@ -304,7 +286,7 @@ static struct nightmare_tuners {
 	unsigned int trans_load_h0_scroff;
 	unsigned int trans_load_l1_scroff;
 	unsigned int trans_load_h1_scroff;
-#ifndef CONFIG_CPU_EXYNOS4210
+#if (NR_CPUS > 2)
 	unsigned int trans_load_l2;
 	unsigned int trans_load_h2;
 	unsigned int trans_load_l3;
@@ -481,8 +463,8 @@ static inline cputime64_t get_cpu_idle_time_jiffy(unsigned int cpu,
 
 	cur_wall_time = jiffies64_to_cputime64(get_jiffies_64());
 
-	busy_time  = cputime64_add(busy_time, kstat_cpu(cpu).cpustat.user);
-	busy_time  = cputime64_add(busy_time, kstat_cpu(cpu).cpustat.system);
+	busy_time = cputime64_add(busy_time, kstat_cpu(cpu).cpustat.user);
+	busy_time = cputime64_add(busy_time, kstat_cpu(cpu).cpustat.system);
 	busy_time = cputime64_add(busy_time, kstat_cpu(cpu).cpustat.irq);
 	busy_time = cputime64_add(busy_time, kstat_cpu(cpu).cpustat.softirq);
 	busy_time = cputime64_add(busy_time, kstat_cpu(cpu).cpustat.steal);
@@ -562,7 +544,7 @@ show_one(trans_load_h1, trans_load_h1);
 show_one(trans_load_h0_scroff, trans_load_h0_scroff);
 show_one(trans_load_l1_scroff, trans_load_l1_scroff);
 show_one(trans_load_h1_scroff, trans_load_h1_scroff);
-#ifndef CONFIG_CPU_EXYNOS4210
+#if (NR_CPUS > 2)
 show_one(trans_load_l2, trans_load_l2);
 show_one(trans_load_h2, trans_load_h2);
 show_one(trans_load_l3, trans_load_l3);
@@ -606,7 +588,7 @@ static ssize_t store_sampling_down_factor(struct kobject *a,
 					  struct attribute *b,
 					  const char *buf, size_t count)
 {
-	unsigned int input, j;
+	unsigned int input;
 	int ret;
 	ret = sscanf(buf, "%u", &input);
 
@@ -851,7 +833,7 @@ static ssize_t store_sampling_up_factor(struct kobject *a,
 					  struct attribute *b,
 					  const char *buf, size_t count)
 {
-	unsigned int input, j;
+	unsigned int input;
 	int ret;
 	ret = sscanf(buf, "%u", &input);
 
@@ -1004,7 +986,7 @@ static ssize_t store_trans_load_h1_scroff(struct kobject *a, struct attribute *b
 	return count;
 }
 
-#ifndef CONFIG_CPU_EXYNOS4210
+#if (NR_CPUS > 2)
 	/* trans_load_l2 */
 	static ssize_t store_trans_load_l2(struct kobject *a, struct attribute *b,
 					   const char *buf, size_t count)
@@ -1108,7 +1090,7 @@ define_one_global_rw(trans_load_h1);
 define_one_global_rw(trans_load_h0_scroff);
 define_one_global_rw(trans_load_l1_scroff);
 define_one_global_rw(trans_load_h1_scroff);
-#ifndef CONFIG_CPU_EXYNOS4210
+#if (NR_CPUS > 2)
 define_one_global_rw(trans_load_l2);
 define_one_global_rw(trans_load_h2);
 define_one_global_rw(trans_load_l3);
@@ -1149,7 +1131,7 @@ static struct attribute *dbs_attributes[] = {
 	&trans_load_h0_scroff.attr,
 	&trans_load_l1_scroff.attr,
 	&trans_load_h1_scroff.attr,
-#ifndef CONFIG_CPU_EXYNOS4210
+#if (NR_CPUS > 2)
 	&trans_load_l2.attr,
 	&trans_load_h2.attr,
 	&trans_load_l3.attr,
@@ -1187,7 +1169,7 @@ standalone_hotplug(struct cpufreq_nightmare_cpuinfo *this_nightmare_cpuinfo)
 	unsigned int threshold[CPULOAD_TABLE][2] = {
 		{0, nightmare_tuners_ins.trans_load_h0},
 		{nightmare_tuners_ins.trans_load_l1, nightmare_tuners_ins.trans_load_h1},
-#ifndef CONFIG_CPU_EXYNOS4210
+#if (NR_CPUS > 2)
 		{nightmare_tuners_ins.trans_load_l2, nightmare_tuners_ins.trans_load_h2},
 		{nightmare_tuners_ins.trans_load_l3, 100},
 #endif
@@ -1197,7 +1179,7 @@ standalone_hotplug(struct cpufreq_nightmare_cpuinfo *this_nightmare_cpuinfo)
 	unsigned int threshold_scroff[CPULOAD_TABLE][2] = {
 		{0, nightmare_tuners_ins.trans_load_h0_scroff},
 		{nightmare_tuners_ins.trans_load_l1_scroff, nightmare_tuners_ins.trans_load_h1_scroff},
-#ifndef CONFIG_CPU_EXYNOS4210
+#if (NR_CPUS > 2)
 		{nightmare_tuners_ins.trans_load_l2_scroff, nightmare_tuners_ins.trans_load_h2_scroff},
 		{nightmare_tuners_ins.trans_load_l3_scroff, 100},
 #endif
@@ -1299,18 +1281,6 @@ static void cpu_down_work(struct work_struct *work)
 		if (--nr_down == 0)
 			break;
 	}
-}
-
-static void debug_hotplug_check(int which, int rq_avg, int freq,
-			 struct cpu_usage *usage)
-{
-	int cpu;
-	printk(KERN_ERR "CHECK %s rq %d.%02d freq %d [", which ? "up" : "down",
-	       rq_avg / 100, rq_avg % 100, freq);
-	for_each_online_cpu(cpu) {
-		printk(KERN_ERR "(%d, %d), ", cpu, usage->load[cpu]);
-	}
-	printk(KERN_ERR "]\n");
 }
 
 static void nightmare_check_cpu(struct cpufreq_nightmare_cpuinfo *this_nightmare_cpuinfo)
@@ -1518,10 +1488,10 @@ static void nightmare_check_frequency(struct cpufreq_nightmare_cpuinfo *this_nig
 				freq_up = policy->cur + (inc_load - inc_brake);
 			}			
 
-		#ifdef CONFIG_HAS_EARLYSUSPEND
-		if (screen_off && freq_up > 800000)
-		freq_up = 800000;
-		#endif
+			#ifdef CONFIG_HAS_EARLYSUSPEND
+				if (screen_off && freq_up > 700000)
+					freq_up = 700000;
+			#endif
 
 			if (freq_up != policy->cur && freq_up <= policy->max) {
 				__cpufreq_driver_target(policy, freq_up, CPUFREQ_RELATION_L);
@@ -1545,8 +1515,8 @@ static void nightmare_check_frequency(struct cpufreq_nightmare_cpuinfo *this_nig
 			}
 
 			#ifdef CONFIG_HAS_EARLYSUSPEND
-			if (screen_off && freq_down < policy->min)
-				freq_down = policy->min;
+				if (screen_off && freq_down < 200000)
+					freq_down = 200000;
 			#endif
 
 			if (freq_down != policy->cur) {
@@ -1604,33 +1574,6 @@ static inline void nightmare_timer_exit(struct cpufreq_nightmare_cpuinfo *nightm
 	cancel_work_sync(&nightmare_cpuinfo->up_work);
 	cancel_work_sync(&nightmare_cpuinfo->down_work);
 }
-
-static int pm_notifier_call(struct notifier_block *this,
-			    unsigned long event, void *ptr)
-{
-	static unsigned int prev_hotplug_lock;
-	switch (event) {
-	case PM_SUSPEND_PREPARE:
-		prev_hotplug_lock = atomic_read(&g_hotplug_lock);
-		atomic_set(&g_hotplug_lock, 1);
-		apply_hotplug_lock();
-		pr_debug("%s enter suspend\n", __func__);
-		return NOTIFY_OK;
-	case PM_POST_RESTORE:
-	case PM_POST_SUSPEND:
-		atomic_set(&g_hotplug_lock, prev_hotplug_lock);
-		if (prev_hotplug_lock)
-			apply_hotplug_lock();
-		prev_hotplug_lock = 0;
-		pr_debug("%s exit suspend\n", __func__);
-		return NOTIFY_OK;
-	}
-	return NOTIFY_DONE;
-}
-
-static struct notifier_block pm_notifier = {
-	.notifier_call = pm_notifier_call,
-};
 
 static int reboot_notifier_call(struct notifier_block *this,
 				unsigned long code, void *_cmd)
@@ -1709,8 +1652,8 @@ static void nightmare_suspend(int suspend)
 					policy->cpuinfo.transition_latency = trans_latency_two_cores;
 
 				// let's give it a little breathing room
-				if (800000 <= policy->max && 800000 >= policy->min)
-					__cpufreq_driver_target(policy,800000,CPUFREQ_RELATION_H);
+				if (700000 <= policy->max && 700000 >= policy->min)
+					__cpufreq_driver_target(policy,700000,CPUFREQ_RELATION_H);
 
 				cpufreq_cpu_put(policy);
 
@@ -1752,10 +1695,8 @@ static int cpufreq_governor_nightmare(struct cpufreq_policy *policy,
 {
 	unsigned int cpu = policy->cpu;
 	struct cpufreq_nightmare_cpuinfo *this_nightmare_cpuinfo;
-	struct cpufreq_frequency_table *freq_table;
 	unsigned int j;
 	int rc;
-	unsigned int online;
 
 	this_nightmare_cpuinfo = &per_cpu(od_nightmare_cpuinfo, cpu);
 
@@ -1862,7 +1803,6 @@ static int cpufreq_governor_nightmare(struct cpufreq_policy *policy,
 
 		for_each_online_cpu(j) {
 			struct cpufreq_policy *cpu_policy;
-			struct cpufreq_nightmare_cpuinfo *cpu_nightmare_cpuinfo;
 
 			cpu_policy = cpufreq_cpu_get(j);
 			if (!cpu_policy)
