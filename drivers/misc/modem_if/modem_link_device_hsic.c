@@ -194,7 +194,7 @@ static void usb_rx_retry_work(struct work_struct *work)
 	switch (pipe_data->format) {
 	case IF_USB_FMT_EP:
 		if (usb_ld->if_usb_is_main) {
-			pr_urb("IPC-RX, retry", urb);
+		//	pr_urb("IPC-RX, retry", urb);
 			iod_format = IPC_FMT;
 		} else {
 			iod_format = IPC_BOOT;
